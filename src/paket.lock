@@ -1,0 +1,16 @@
+NUGET
+  remote: https://www.nuget.org/api/v2
+  specs:
+    FAKE (4.14.5)
+    FSharp.Core (4.0.0.1)
+    FSharpLint (0.2.7)
+
+GROUP Test
+NUGET
+  remote: https://www.nuget.org/api/v2
+  specs:
+    kafka-net (0.9.0.65)
+    NUnit (3.0.1)
+    NUnit.Console (3.0.1)
+    NUnit.Runners (3.0.1)
+      NUnit.Console (3.0.1)

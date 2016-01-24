@@ -1,0 +1,26 @@
+# User-specific files
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+build/
+test/
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio 2015 cache/options directory
+.vs/
+
+# NuGet Packages
+**/packages/*
+
+# Paket files
+**/paket.exe
+
+# FAKE cache
+**/.fake/*
