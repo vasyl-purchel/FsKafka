@@ -1,16 +1,26 @@
 NUGET
   remote: https://www.nuget.org/api/v2
   specs:
-    FAKE (4.14.5)
+    Crc32C.NET (1.0.5)
     FSharp.Core (4.0.0.1)
-    FSharpLint (0.2.7)
+    Snappy.NET (1.1.1.8)
+      Crc32C.NET (>= 1.0.5)
+
+GROUP Build
+NUGET
+  remote: https://www.nuget.org/api/v2
+  specs:
+    FAKE (4.20.0)
+    FSharpLint (0.2.8)
+    NUnit.Console (3.0.1)
+    NUnit.Runners (3.0.1)
+      NUnit.Console (3.0.1)
 
 GROUP Test
 NUGET
   remote: https://www.nuget.org/api/v2
   specs:
-    kafka-net (0.9.0.65)
+    FsCheck (2.2.4)
+      FSharp.Core (>= 3.1.2.5)
+    FSharp.Core (4.0.0.1)
     NUnit (3.0.1)
-    NUnit.Console (3.0.1)
-    NUnit.Runners (3.0.1)
-      NUnit.Console (3.0.1)

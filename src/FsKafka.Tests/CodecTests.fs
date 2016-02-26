@@ -27,10 +27,10 @@ module CodecTests =
     match r with
     | Metadata metadata -> Pickle.pList Pickle.pString metadata.TopicName
   let requestMessage (r:RequestMessage) =
-    Pickle.pQuintuple Pickle.pInt16 Pickle.pInt16 Pickle.pInt32 Pickle.pString requestType (requestMessageToTuple r)
+    (Pickle.pInt16 r.ApiKey) >> (Pickle.pInt16 r.ApiVersion) >> (Pickle.pInt32 r.CorrelationId) >> (Pickle.pString r.ClientId) >> (requestType r.RequestMessage)
   let encoder (r:Request) =
     let data = Pickle.encode requestMessage r.Message
-    Pickle.pPair Pickle.pInt32 Pickle.pUnit (data.Length, data)
+    (Pickle.pInt32 data.Length) >> (Pickle.pUnit data)
   
   let expectedResult =
     [| 0uy; 0uy; 0uy; 44uy; 0uy; 3uy; 0uy; 0uy; 0uy; 0uy; 0uy; 1uy; 0uy; 7uy; 70uy;
@@ -47,7 +47,7 @@ module CodecTests =
   type Response = { ApiKey: int16;  ApiVersion: int16; CorrelationId: string; RequestMessage: Metadata }
   
   let makeResp (apiKey, apiVersion, correlationId, topics) = {ApiKey = apiKey; ApiVersion = apiVersion; CorrelationId = correlationId; RequestMessage = { TopicName = topics } }
-  let respEncoder (r:Response) = Pickle.pQuadruple Pickle.pInt16 Pickle.pInt16 Pickle.pString (Pickle.pList Pickle.pString) (r.ApiKey, r.ApiVersion, r.CorrelationId, r.RequestMessage.TopicName)
+  let respEncoder (r:Response) = (Pickle.pInt16 r.ApiKey) >> (Pickle.pInt16 r.ApiVersion) >> (Pickle.pString r.CorrelationId) >> (Pickle.pList Pickle.pString r.RequestMessage.TopicName)
   let decoder = Unpickle.upQuadruple Unpickle.upInt16 Unpickle.upInt16 Unpickle.upString (Unpickle.upList Unpickle.upString)
   
   [<Test>]

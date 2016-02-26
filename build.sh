@@ -17,7 +17,7 @@ if [ ! -e ".paket/paket.exe" ]; then
 fi
 
 cd src
-if [ ! -e "packages/FAKE/tools/FAKE.exe" ]; then
+if [ ! -e "packages/build/FAKE/tools/FAKE.exe" ]; then
   if [ -e "paket.lock" ]
   then
     $MONO ../.paket/paket.exe restore
@@ -30,4 +30,4 @@ if [ ! -e "packages/FAKE/tools/FAKE.exe" ]; then
   fi
 fi
 cd ..
-$MONO src/packages/FAKE/tools/FAKE.exe $@ --fsiargs build.fsx
+$MONO src/packages/build/FAKE/tools/FAKE.exe $@ --fsiargs build.fsx

@@ -6,7 +6,7 @@ if not exist .paket\paket.exe (
   )
 )
 cd src
-if not exist packages\FAKE\tools\FAKE.exe (
+if not exist packages\build\FAKE\tools\FAKE.exe (
   if not exist paket.lock (
     ..\.paket\paket.exe install
   ) else (
@@ -17,4 +17,4 @@ if not exist packages\FAKE\tools\FAKE.exe (
   )
 )
 cd ..
-src\packages\FAKE\tools\FAKE.exe %* --fsiargs build.fsx
+src\packages\build\FAKE\tools\FAKE.exe %* --fsiargs build.fsx

@@ -37,11 +37,6 @@ module Pickle =
     let buffer = Array.zeroCreate<byte> (stream |> List.sumBy (fun e -> e.Length))
     List.foldBack (copyBlock buffer) stream 0 |> ignore
     buffer
-  
-  let pPair      pA pB          (a, b)          = (pA a) >> (pB b)
-  let pTriple    pA pB pC       (a, b, c)       = (pPair pA pB (a, b)) >> (pC c)
-  let pQuadruple pA pB pC pD    (a, b, c, d)    = (pTriple pA pB pC (a, b, c)) >> (pD d)
-  let pQuintuple pA pB pC pD pE (a, b, c, d, e) = (pQuadruple pA pB pC pD (a, b, c, d)) >> (pE e)
 
 module Unpickle =
 
@@ -134,35 +129,46 @@ module Unpickle =
     
   let decode (u:Unpickler<'a>) data = unpickle {
     let! (a, (data, offset)) = u (data, 0)
-    if offset = data.Length
-    then return! Success(a, (data, offset))
-    else return! Failure(UpErrors.UnfinishedParsing{ Offset = offset; StreamSize = data.Length }) }
-
-module Codec =
-  
-  open Protocol
-  open Pickle
-  open Unpickle
-
-  let stub = Pickle.pUnit [||]
-
-  let requestType (r:RequestType) =
-    match r with
-    | MetadataRequest r -> pList pString r.TopicName
-    | ProduceRequest r -> stub
-    | FetchRequest r -> stub
-    | OffsetRequest r -> stub
-    | OffsetCommitRequest r -> stub
-    | OffsetFetchRequest r -> stub
+    return! Success(a, (data, offset)) }
     
-  let requestMessageToTuple (r:RequestMessage) = (r.ApiKey, r.ApiVersion, r.CorrelationId, r.ClientId, r.RequestMessage)
-  let requestMessage (r:RequestMessage) = pQuintuple pInt16 pInt16 pInt32 pString requestType (requestMessageToTuple r)
-
-  let requestOrResponseType (r:RequestOrResponseType) =
-    match r with
-    | RequestMessage r -> requestMessage r
-    | ResponseMessage r -> stub
-  let encoder (r:RequestOrResponse) =
-    let data = encode requestOrResponseType r.Message
-    pPair pInt32 pUnit (data.Length, data)
+module Crc32 =
+  let defaultPolynomial = 0xedb88320u
+  let defaultSeed       = 0xFFffFFffu
+  let table             =
+    let inline nextValue acc =
+      if 0u <> (acc &&& 1u) then defaultPolynomial ^^^ (acc >>> 1) else acc >>> 1
+    let rec iter k acc =
+      if k = 0 then acc else iter (k-1) (nextValue acc)
+    [| 0u .. 255u |] |> Array.map (iter 8)
   
+  let calculate =
+    let inline f acc (x:byte) =
+      table.[int32 ((acc ^^^ (uint32 x)) &&& 0xffu)] ^^^ (acc >>> 8)
+    Array.fold f defaultSeed >> (^^^) defaultSeed
+
+module Compression =
+  
+  open System.IO.Compression
+  open Snappy
+
+  let private apply compressionType compressionMode (data:byte[]) =
+    use source = new MemoryStream(data)
+    use destination = new MemoryStream()
+    use compresser = compressionType destination compressionMode false
+    source.CopyTo(compresser)
+    destination.ToArray()
+
+  let private compress   f data = apply f CompressionMode.Compress   data
+  let private decompress f data = apply f CompressionMode.Decompress data
+
+  let gzipCompress =
+    compress   (fun x y z -> new GZipStream(stream = x, mode = y, leaveOpen = z) :> Stream)
+  
+  let gzipDecompress =
+    decompress (fun x y z -> new GZipStream(stream = x, mode = y, leaveOpen = z) :> Stream)
+
+  let snappyCompress =
+    compress   (fun x y z -> new SnappyStream(stream = x, mode = y, leaveOpen = z) :> Stream)
+  
+  let snappyDecompress =
+    decompress (fun x y z -> new SnappyStream(stream = x, mode = y, leaveOpen = z) :> Stream)

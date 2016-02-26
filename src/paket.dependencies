@@ -1,12 +1,17 @@
 source https://www.nuget.org/api/v2/
 
-nuget FAKE
-nuget FSharpLint
 nuget FSharp.Core
+nuget Snappy.NET
+
+group Build
+  source https://www.nuget.org/api/v2/
+  
+  nuget FAKE
+  nuget FSharpLint
+  nuget NUnit.Runners
 
 group Test
   source https://www.nuget.org/api/v2/
 
   nuget NUnit 3.0.1
-  nuget NUnit.Runners
-  nuget kafka-net
+  nuget FsCheck

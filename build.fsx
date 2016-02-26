@@ -1,7 +1,7 @@
-#r @"src/packages/FAKE/tools/FakeLib.dll"
-#r @"src/packages/FSharpLint/FSharpLint.Application.dll"
-#r @"src/packages/FSharpLint/FSharpLint.Worker.dll"
-#r @"src/packages/FSharpLint/FSharpLint.FAKE.dll"
+#r @"src/packages/build/FAKE/tools/FakeLib.dll"
+#r @"src/packages/build/FSharpLint/FSharpLint.Application.dll"
+#r @"src/packages/build/FSharpLint/FSharpLint.Worker.dll"
+#r @"src/packages/build/FSharpLint/FSharpLint.FAKE.dll"
 
 open Fake
 open Fake.Testing
@@ -14,7 +14,7 @@ let testDir = "./test/"
 let appProjects = !! "**/FsKafka.fsproj"
 let testProjects = !! "**/FsKafka.Tests.fsproj"
 
-let nunitRunnerPath = System.IO.Directory.GetCurrentDirectory() @@ "src/packages/test/NUnit.Console/tools/nunit3-console.exe"
+let nunitRunnerPath = System.IO.Directory.GetCurrentDirectory() @@ "src/packages/build/NUnit.Console/tools/nunit3-console.exe"
 
 // Targets
 Target "Lint" (fun _ ->

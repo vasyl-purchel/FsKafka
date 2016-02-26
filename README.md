@@ -12,24 +12,29 @@ Places I'm looking to for ideas and to find how it should be done:
 Using FAKE tasks from build.fsx, default one will build and run tests
 Or just run build.cmd or build.sh
 
-## How I want it to be used
+## Usage example
 
 ```fsharp
-let options = { Kafka.defaults with Servers=["http://CSDKAFKA01:9092"; "http://CSDKAFKA02:9092"] }
-let conn = Kafka.connection options
 
-Kafka.consumeAsync { Kafka.defaultConsumer with Topic = "TestTopic" } (fun m ->
-  printfn "Received message: P%s,O%s : %s" m.Meta.PartitionId m.Meta.Offset m.Value)
+// producer:
+let endpoints = [ "192.168.99.100", 9091; "192.168.99.100", 9089]
+let connection = Connection.create { Connection.defaultConfig with MetadataBrokersList = endpoints }
+let metadataProvider = MetadataProvider.create MetadataProvider.defaultConfig connection
+
+let codec s = System.Text.Encoding.UTF8.GetBytes(s)
+let producer = Producer.start<string> (Producer.defaultConfig codec) connection metadataProvider
 
 let rec loop () =
   System.Console.ReadLine()
   |> function
      | "quit" -> printfn "Finishing..."
      | message ->
-         client.SendMessagesAsync("TestTopic", [|message|])
+         Producer.send producer "TestTopic" [||] message
          loop()
 printfn "Type a message and press enter... (to exit enter 'quit')"
+
 loop()
+
 ```
 
 ## Decisions
@@ -44,17 +49,27 @@ Inspired by [FsPickler][3] and [picklers combinators][4] I decided to create
 similar idea and created `FsKafka.Pickle` and `FsKafka.Unpickle` with
 `Kafka.Codec` that using them to encode requests and decode responses
 
+While creating **Producer** I have used batching for all messages. Batching per
+broker may be better but leader may get changed after we put message into broker
+batch and when we will send message we can get some messages lost.
+
 ## TODO
 
+ * write tests
  * make sure it still builds on linux and add CI config
  * make protocol types `internal`
- * create connection, tcpSocket, add encoders and decoders for protocol entries
- * create consumer and producer
-
-## Review
-
-@cloudroutine, @vaskir
-
+ * throttle number of asynchronous requests to some limit
+ * metadata refresh throws exception, better to return Result.Failure
+ * retry ProduceMessages if they failed
+ * impement MessageCodec for topics + single messages (in producer)
+ * notify if topic is not created and server configured to not create topic... (for now somehow I'm successfully send messages to topics that I didn't create separately...)
+ * implement ProducerType.Sync
+ * implement test service that would use producer
+ * run test with 1 producer and console consumer to see that it works...
+ * check how it works on errors like (a. leader change) (b. node down)
+ * implement consumer
+ * implement [error codes](https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-ErrorCodes)
+ 
 [1]: http://kafka.apache.org/
 [2]: https://github.com/Jroland/kafka-net
 [3]: http://nessos.github.io/FsPickler/
