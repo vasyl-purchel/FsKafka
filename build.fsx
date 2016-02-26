@@ -1,6 +1,5 @@
 #r @"src/packages/build/FAKE/tools/FakeLib.dll"
 #r @"src/packages/build/FSharpLint/FSharpLint.Application.dll"
-#r @"src/packages/build/FSharpLint/FSharpLint.Worker.dll"
 #r @"src/packages/build/FSharpLint/FSharpLint.FAKE.dll"
 
 open Fake

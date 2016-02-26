@@ -4,9 +4,24 @@ open System
 open System.Threading
 
 module Logging =
-  type LogLevel = Verbose | Debug | Info | Warn | Error | Fatal
-  and  LogLine  = { Message:string; Level:LogLevel; Path:string; Exception:exn option; Worker: int; Timestamp: int64 }
-  and  Logger   = { LogLine : LogLevel -> (unit -> LogLine) -> unit }
+  type LogLevel =
+    | Verbose
+    | Debug
+    | Info
+    | Warn
+    | Error
+    | Fatal
+
+  and  LogLine  =
+    { Message:   string
+      Level:     LogLevel
+      Path:      string
+      Exception: exn option
+      Worker:    int
+      Timestamp: int64 }
+
+  and  Logger   =
+    { LogLine : LogLevel -> (unit -> LogLine) -> unit }
   
   let logLevelToInt    = function
     | Verbose -> 1
@@ -68,7 +83,6 @@ module Logging =
           | Some ex -> printfn "%s\nexn:%s" formatted (ex.ToString())
           | None    -> printfn "%s" formatted }
   
-  verbosef (defaultLogger LogLevel.Info) "my.test.app" (fun f -> f "%s, %s!" "hello" "")
   let combine loggers =
     { LogLine = fun level mkLine ->
         loggers |> List.iter(fun logger -> logger.LogLine level mkLine) }

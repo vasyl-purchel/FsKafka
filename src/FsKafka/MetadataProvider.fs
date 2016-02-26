@@ -37,7 +37,6 @@ module MetadataProvider =
   type T(config:Config, connection:Connection.T) =
     let verbosef f         = verbosef config.Log "FsKafka.MetadataProvider" f
     
-    (* Metadata related *)
     let metadata = new Dictionary<TopicName, Dictionary<PartitionId, Connection.Endpoint>>()
     
     let checkpoint         = AsyncCheckpoint("Metadata")
@@ -77,7 +76,11 @@ module MetadataProvider =
               do! Async.Sleep (attempt * attempt * config.RetryBackoffMs)
               return! loop request (attempt + 1)
             else
-              r.Broker |> List.map (fun b -> {Connection.Endpoint.Host = b.Host; Connection.Endpoint.Port = b.Port}) |> Set.ofList |> connection.UpdateBrokers
+              r.Broker
+              |> List.map (fun b -> {Connection.Endpoint.Host = b.Host; Connection.Endpoint.Port = b.Port})
+              |> Set.ofList 
+              |> connection.UpdateBrokers
+
               metadata.Clear()
               r.TopicMetadata
               |> List.iter(fun topic ->
@@ -106,6 +109,6 @@ module MetadataProvider =
       else ensureSingleThread (checkpoint.WithClosedDoors (async { verbosef (fun f -> f "opening doors for metadata") } ) ) |> Async.Start
 
     member x.RefreshMetadata topics = topics |> Set.ofList |> refreshMetadata
-    member x.BrokersFor      topic  = topic  |> toMetadata // if failed then it means that we couldn't refresh metadata and don't have topic up-to-date cache
+    member x.BrokersFor      topic  = topic  |> toMetadata
 
   let create config connection = T(config, connection)

@@ -19,7 +19,7 @@ module Connection =
   let defaultConfig =
     { MetadataBrokersList  = []
       Log                  = defaultLogger LogLevel.Verbose
-      RequestTimeoutMs     = 10000 }
+      RequestTimeoutMs     = 20000 }
     
   type IClient =
     abstract ConnectAsync      : string * int * CancellationToken -> Async<Result<unit>>
@@ -27,9 +27,9 @@ module Connection =
     abstract ReadAsync         : int                              -> Async<Result<byte[]>>
     abstract Close             : unit                             -> unit
 
-  exception SocketDisconnectedException of unit
+  exception SocketDisconnectedException  of unit
   exception FailedAddingRequestException of unit
-  exception RequestTimedOutException of unit
+  exception RequestTimedOutException     of unit
 
   type TcpIoClient (logger:Logger) =
     let verbosef f = verbosef logger "FsKafka.Connection.TcpIoClient" f
@@ -41,16 +41,17 @@ module Connection =
       if i + n >= size then
         verbosef (fun f -> f "read succeeded for size=%i" buffer.Length)
         return Success buffer
-      else if n = 0 then
-             verbosef (fun f -> f "readed 0 bytes, socket disconnected")
-             return SocketDisconnectedException() |> Failure
-           else
-             verbosef (fun f -> f "readed readed=%i, size=%i, offset=%i" n size i)
-             return! readLoop stream buffer size (i + n) }
+      elif n = 0 then
+        verbosef (fun f -> f "readed 0 bytes, socket disconnected")
+        return SocketDisconnectedException() |> Failure
+      else
+        verbosef (fun f -> f "readed readed=%i, size=%i, offset=%i" n size i)
+        return! readLoop stream buffer size (i + n) }
 
     let client = new TcpClient()
     
     interface IClient with
+
       member x.ConnectAsync(host, port, token) = async {
         verbosef (fun f -> f "connecting to host=%s, port=%i" host port)
         try
@@ -59,15 +60,23 @@ module Connection =
                  else sprintf "connection failed for host=%s, port=%i" host port |> exn |> Failure
         with
         | ex -> return Failure ex }
+
       member x.WriteAsync   data        = 
         verbosef (fun f -> f "writing data.Length=%i" data.Length)
         data |> client.GetStream().AsyncWrite |> asyncToResult
+
       member x.ReadAsync    size        = 
         verbosef (fun f -> f "reading size=%i" size)
         readLoop (client.GetStream())  (Array.zeroCreate size) size 0
-      member x.Close        ()          = if Interlocked.Increment disposed = 1 then (client :> IDisposable).Dispose()
+
+      member x.Close        ()          =
+        if Interlocked.Increment disposed = 1
+        then (client :> IDisposable).Dispose()
+
     interface IDisposable with
-      member x.Dispose      ()          = if Interlocked.Increment disposed = 1 then (client :> IDisposable).Dispose()
+      member x.Dispose      ()          =
+        if Interlocked.Increment disposed = 1
+        then (client :> IDisposable).Dispose()
 
   let tcpClient logger = new TcpIoClient(logger)
 
@@ -84,14 +93,14 @@ module Connection =
     let connect () =
       let rec loop reconnectionDelay = async {
         infof (fun f -> f "Connecting to host=%s, port=%i" host port)
-        do! Async.Sleep 500
-        infof (fun f -> f "Connecting started to host=%s, port=%i" host port)
         let! result = client.ConnectAsync(host, port, cancellationSource.Token)
         match result with
-        | Success _ -> infof (fun f -> f "Connection established to host=%s, port=%i" host port); do! Async.Sleep 500
-        | Failure e -> verbosee e (sprintf "Reconnecting after Delay=%i" reconnectionDelay)
-                       do! Async.Sleep reconnectionDelay
-                       return! loop (reconnectionDelay * 2) }
+        | Success _ ->
+            infof (fun f -> f "Connection established to host=%s, port=%i" host port)
+        | Failure e ->
+            verbosee e (sprintf "Reconnecting after Delay=%i" reconnectionDelay)
+            do! Async.Sleep reconnectionDelay
+            return! loop (reconnectionDelay * 2) }
       
       ensureSingleThread (checkpoint.WithClosedDoors (loop 500))
 
@@ -111,28 +120,36 @@ module Connection =
     member x.WriteAsync data      =
       verbosef (fun f -> f "Requested WriteAsync on [%s:%i]" host port)
       checkpoint.OnPassage (async { return! client.WriteAsync data })
+
     member x.ReadAsync  size      =
       verbosef (fun f -> f "Requested ReadAsync on [%s:%i]" host port)
       checkpoint.OnPassage (async { return! client.ReadAsync size })
+
     member x.Reconnect  ()        = connect ()
+
     member x.Close (?timeout:int) = cleanUp timeout
 
     member x.CancellationToken with get () = cancellationSource.Token
     
     override x.Finalize () = cleanUp None |> Async.RunSynchronously
+
     interface IDisposable with
       member x.Dispose  () = cleanUp None |> Async.RunSynchronously
 
-  type Endpoint    = { Host: string;  Port: int }
-  and  Broker      = { Client: Client; Reader: MailboxProcessor<unit>}
+  type Endpoint    =
+    { Host: string
+      Port: int }
+  and  Broker      =
+    { Client: Client
+      Reader: MailboxProcessor<unit> }
   
   let readAgent (client : Client, cancellationToken, handler: Async<Result<int * int * byte[]>> -> Async<unit>) =
     let readLoop () = asyncResult {
-      let! sizeBytes = client.ReadAsync 4
-      let! size = FsKafka.Protocol.Response.decodeInt sizeBytes
+      let! sizeBytes       = client.ReadAsync 4
+      let! size            = Response.decodeInt sizeBytes
       let! correlatorBytes = client.ReadAsync 4
-      let! correlator = FsKafka.Protocol.Response.decodeInt correlatorBytes
-      let! messageData = client.ReadAsync (size - 4)
+      let! correlator      = Response.decodeInt correlatorBytes
+      let! messageData     = client.ReadAsync (size - 4)
       return (size, correlator, messageData) }
 
     let rec loop (inbox:MailboxProcessor<unit>) = async {
@@ -149,7 +166,8 @@ module Connection =
     (* Requests related *)
     let correlator         = ref 0
     let nextCorrelator ()  =
-      if !correlator > Int32.MaxValue - 1000 then Interlocked.Exchange(correlator, 0) |> ignore
+      if !correlator > Int32.MaxValue - 1000
+      then Interlocked.Exchange(correlator, 0) |> ignore
       Interlocked.Increment correlator
 
     // maybe change to list of requests per client and correlator per client
@@ -168,9 +186,9 @@ module Connection =
 
     let handleResponse response = asyncResult {
       let! (size, correlator, data) = response
-      let! (request, source) = tryRemoveRequest correlator
-      let! decode = FsKafka.Protocol.Response.requestToResponseDecode request
-      let! response = decode size correlator data
+      let! (request, source)        = tryRemoveRequest correlator
+      let! decode                   = FsKafka.Protocol.Response.requestToResponseDecode request
+      let! response                 = decode size correlator data
       do! trySetResult correlator source response }
 
     let processResponse data = async {
@@ -249,7 +267,10 @@ module Connection =
     let sendToFirstSuccessfullBroker request = brokers.Keys |> Seq.tryPick (trySend request)
 
     do
-      config.MetadataBrokersList |> List.map (fun (host, port) -> { Host = host; Port = port }) |> Set.ofList |> addNewBrokers
+      config.MetadataBrokersList
+      |> List.map (fun (host, port) -> { Host = host; Port = port })
+      |> Set.ofList
+      |> addNewBrokers
 
     member x.UpdateBrokers brokers           = updateBrokers brokers
     member x.Send          (broker, request) = send broker request

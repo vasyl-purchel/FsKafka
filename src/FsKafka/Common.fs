@@ -45,8 +45,6 @@ module Common =
     type AsyncResult<'T> = Async<Result<'T>>
   
     let mreturn v = async { return Success v }
-    let mreturnFrom v : Async<Result<'T>> = v
-    let delay f = async { return! f () }
     let bind (v, f) = async {
       let! result = v
       match result with
@@ -55,11 +53,7 @@ module Common =
   
     type AsyncResultBuilder () =
       member x.Return  v      = mreturn v
-      //member x.Zero    ()     = mreturn () //???
-      member x.ReturnFrom v   = mreturnFrom v //???
-      member x.Delay   f      = delay f //???
       member x.Bind    (v, f) = bind (v, f)
-      member x.Combine (v, f) = bind (v, fun () -> f) //???
 
   let asyncResult = AsyncResult.AsyncResultBuilder()
 
@@ -112,22 +106,15 @@ module Common =
         scheduler         = TaskScheduler.Default) |> ignore
       tcs.Task.Wait()
 
-    do
-      printfn "%s: %A" name m_tcs.Value.Task.Status
-
-    member x.OnPassage computation       = async {
-      printfn "%s: Requesting door entry" name
+    member x.OnPassage       computation = async {
       let! passage = Async.AwaitTask (!m_tcs).Task
-      printfn "%s: Entered doors" name
       match passage with
       | true  -> return! computation
       | false -> return exn "passage declined" |> Failure }
 
     member x.WithClosedDoors computation = async {
       reset()
-      printfn "%s: Doors locked" name
       do! computation
-      printfn "%s: Opening doors" name
       set true }
 
-    member x.Cancel          () = set false
+    member x.Cancel          ()          = set false

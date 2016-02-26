@@ -3,27 +3,6 @@
 module Protocol =
   (* For protocol description please refer to https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol *)
   
-  type CoreApi =
-    | Metadata
-    | Send
-    | Fetch
-    | Offsets
-    | OffsetCommit
-    | OffsetFetch
-
-  // not implemented yet
-  type GroupManagementApi =
-    | GroupCoordinator
-    | JoinGroup
-    | SyncGroup
-    | Heartbeat
-    | LeaveGroup
-
-  // not implemented yet
-  type AdministrativeApi =
-    | DescribeGroups
-    | ListGroups
-
   type ErrorResponseCode =
     | Unknown                             = -1
     | NoError                             = 0
@@ -48,7 +27,7 @@ module Protocol =
     | GZIP   = 0x01
     | Snappy = 0x02
   type Message =
-    { Crc:                int32 // crc32 to check the integrity
+    { Crc:                int32
       MagicByte:          int8
       Attributes:         MessageCodec
       Key:                byte[]
@@ -57,9 +36,7 @@ module Protocol =
     { Offset:             int64
       MessageSize:        int32
       Message:            Message }
-  type MessageSet = MessageSetEntry list // not a usual list, as it doesn't have int32 size at the beginning
-  (* Compression: batch of Message wrapped into MessageSet => compressed with codec => stored into Message as `value` *)
-  (* MessageSet should contain only one compressed message *)
+  type MessageSet = MessageSetEntry list
 
   type MetadataRequest =
     { TopicName:          string list }
@@ -220,6 +197,7 @@ module Protocol =
       Message:            RequestOrResponseType }
 
   module Optics =
+
     let withCorrelator correlator message =
       match message.Message with
       | RequestMessage  r -> { message with Message = { r with CorrelationId = correlator } |> RequestMessage }
@@ -248,11 +226,10 @@ module Protocol =
         - offset
         + metadata
         - offset commit
-        - offset fetch
-       compression for produce - done but needs checks. *)
+        - offset fetch *)
 
-    let private apiVersion = 0s
-    let private messageVersion = int8 0
+    let private apiVersion         = 0s
+    let private messageVersion     = int8 0
     let private encodeTimeCreation = 0
 
     let private toApiKey = function
@@ -284,7 +261,7 @@ module Protocol =
       |> RequestType.MetadataRequest
       |> request clientId correlationId
 
-    // message = (Key * Value) list
+    // messages = (Key * Value) list
     let mkMessageSet codec messages : MessageSet =
       let mapMessage (key, value) =
         { Crc         = encodeTimeCreation
@@ -299,9 +276,6 @@ module Protocol =
       List.map (mapMessage >> wrap) messages
 
     // payload = (topic * ( (partitionId * MessageSet) list ) ) list
-    // messages |> groupBy topic |> each groupBy partition |> each map mkMessageSet
-    // to use codecs:
-    // grouped messages |> mkMessageSet MessageCodec.None |> encode >> useCodec |> fun x -> [], x |> mkMessageSet codec
     let produce clientId correlationId acks timeout payload =
       let mapPartitions (partitionId, messages:MessageSet) : ProduceTopicPayload =
         { Partition                 = partitionId
@@ -463,8 +437,9 @@ module Protocol =
       | t -> sprintf "type not supported: %A" t |> failwith
     
     let private response correlationId message =
-      { ResponseMessage.CorrelationId = correlationId
-        ResponseMessage = message } |> RequestOrResponseType.ResponseMessage
+      { CorrelationId   = correlationId
+        ResponseMessage = message }
+      |> RequestOrResponseType.ResponseMessage
 
     let private output size message : RequestOrResponse =
       { Size    = size
