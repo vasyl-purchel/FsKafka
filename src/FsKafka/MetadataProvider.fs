@@ -19,8 +19,8 @@ module MetadataProvider =
       RetryBackoffMs       = 100 }
 
   type TopicName     = TopicName of string
-  and  PartitionId   = PartitionId of int
-  and  TripleWay<'a> = Success of 'a | Error of exn | Retry
+  type PartitionId   = PartitionId of int
+  type TripleWay<'a> = Success of 'a | Error of exn | Retry
 
   let toTriple errorMsg = function
     | Some v -> Success v
@@ -35,11 +35,11 @@ module MetadataProvider =
     | _     -> false
 
   type T(config:Config, connection:Connection.T) =
-    let verbosef f         = verbosef config.Log "FsKafka.MetadataProvider" f
+    let verbosef f = verbosef config.Log "FsKafka.MetadataProvider" f
     
     let metadata = new Dictionary<TopicName, Dictionary<PartitionId, Connection.Endpoint>>()
     
-    let checkpoint         = AsyncCheckpoint("Metadata")
+    let checkpoint         = AsyncCheckpoint()
     let ensureSingleThread = ensureSingleThread()
 
     let validateBroker broker =

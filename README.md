@@ -70,6 +70,14 @@ batch and when we will send message we can get some messages lost.
  * implement consumer
  * implement [error codes](https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-ErrorCodes)
  
+ ## Bugs
+ 
+ * no need for exceptions everywhere -> Result.Failure to have just message/exception...
+ * reading response - we may succeed on reading size + correlationId but fail later, so we already should use this correlatorId for logging...
+ * correlatorId for connect process and where it is not available `-1`
+ * don't use RequestOrResponse under doing requests and saving the requests
+ * don't use RequestOrResponse for responses
+ 
 [1]: http://kafka.apache.org/
 [2]: https://github.com/Jroland/kafka-net
 [3]: http://nessos.github.io/FsPickler/

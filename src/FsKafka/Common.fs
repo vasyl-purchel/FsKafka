@@ -87,7 +87,7 @@ module Common =
     member x.BatchProduced = batchEvent.Publish
     member x.Enqueue v     = agent.Post v
 
-  type AsyncCheckpoint(name:string) =
+  type AsyncCheckpoint() =
     [<VolatileField>]
     let mutable m_tcs = ref (new TaskCompletionSource<bool>());
     

@@ -6,12 +6,12 @@ open FsKafka.Logging
 
 module Producer =
   type ProducerType                 = Sync | Async
-  and  TopicMetadataRefreshInterval = OnlyOnError | AfterEveryMessage | Scheduled of int
-  and  Compression                  = None | GZip | Snappy
-  and  Codec<'T>                    = 'T -> byte[]
-  and  Partitioner                  = (MetadataProvider.PartitionId * Connection.Endpoint) list -> string -> byte[] -> (MetadataProvider.PartitionId * Connection.Endpoint)
-  and  Message<'T>                  = { Value: 'T; Key: byte[]; Topic: string }
-  and  Config<'a>                   =
+  type TopicMetadataRefreshInterval = OnlyOnError | AfterEveryMessage | Scheduled of int
+  type Compression                  = None | GZip | Snappy
+  type Codec<'T>                    = 'T -> byte[]
+  type Partitioner                  = (MetadataProvider.PartitionId * Connection.Endpoint) list -> string -> byte[] -> (MetadataProvider.PartitionId * Connection.Endpoint)
+  type Message<'T>                  = { Value: 'T; Key: byte[]; Topic: string }
+  type Config<'a>                   =
     { RequestRequiredAcks:            int16 // in documentation -1 wait for everyone to acknowledge, 0 - don't resturn response, 1 - leader acknowledge, 2+ - number of nodes to acknowledge, but with 2+ I receive error that wrong Acks (maybe something to do with test kafka configuration)
       ClientId:                       string
       RequestTimeoutMs:               int
@@ -114,7 +114,6 @@ module Producer =
         |> Async.Parallel
         |> Async.Ignore
       else async {()}
-      
 
     do
       verbosef (fun f -> f "initializing producer")
