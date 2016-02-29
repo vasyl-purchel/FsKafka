@@ -9,15 +9,23 @@ module Common =
 
   type Result<'T> = Success of 'T | Failure of Exception
 
+  module Result =
+    let bind f = function
+      | Success v -> f v
+      | Failure e -> Failure e
+    let map f = function
+      | Success v -> f v |> Success
+      | Failure e -> Failure e
+    let get = function
+      | Success v -> v
+      | Failure e -> sprintf "Expected Result.Success(x) but received Result.Error(%A)" e |> failwith
+    let toAsync v = async { return v }
+
   let asyncToResult (computation:Async<'T>) = async {
     let! result = Async.Catch computation
     match result with
     | Choice1Of2 r -> return Success r
     | Choice2Of2 e -> return Failure e }
-  
-  let maybe f = function
-    | Success value -> f value |> Success
-    | Failure error -> error   |> Failure
   
   let inline keyValueToTuple (pair:KeyValuePair<_,_>) = pair.Key, pair.Value
 
@@ -45,7 +53,7 @@ module Common =
     type AsyncResult<'T> = Async<Result<'T>>
   
     let mreturn v = async { return Success v }
-    let bind (v, f) = async {
+    let bind f v = async {
       let! result = v
       match result with
       | Success v -> return! f v
@@ -53,7 +61,7 @@ module Common =
   
     type AsyncResultBuilder () =
       member x.Return  v      = mreturn v
-      member x.Bind    (v, f) = bind (v, f)
+      member x.Bind    (v, f) = bind f v
 
   let asyncResult = AsyncResult.AsyncResultBuilder()
 
@@ -86,6 +94,27 @@ module Common =
 
     member x.BatchProduced = batchEvent.Publish
     member x.Enqueue v     = agent.Post v
+  
+  let batchAgent<'T> (batchSize, timeout) = BatchAgent<'T>(batchSize, timeout)
+
+  let readAgent (readAsync:         int * CancellationToken -> Async<Result<byte[]>>)
+                (codec:             byte[] -> Async<Result<int>>)
+                (cancellationToken: CancellationToken)
+                (handler:           Async<Result<int * int * byte[]>> -> Async<unit>) =
+    let readLoop () = asyncResult {
+      let! sizeBytes       = readAsync(4, cancellationToken)
+      let! size            = codec sizeBytes
+      let! correlatorBytes = readAsync(4, cancellationToken)
+      let! correlator      = codec correlatorBytes
+      let! messageData     = readAsync (size - 4, cancellationToken)
+      return (size, correlator, messageData) }
+
+    let rec loop (inbox:MailboxProcessor<unit>) = async {
+      let! _ = inbox.Receive()
+      do! readLoop() |> handler
+      return! loop inbox }
+
+    MailboxProcessor<unit>.Start(loop, cancellationToken)
 
   type AsyncCheckpoint() =
     [<VolatileField>]
@@ -118,3 +147,46 @@ module Common =
       set true }
 
     member x.Cancel          ()          = set false
+
+module Crc32 =
+  let defaultPolynomial = 0xedb88320u
+  let defaultSeed       = 0xFFffFFffu
+  let table             =
+    let inline nextValue acc =
+      if 0u <> (acc &&& 1u) then defaultPolynomial ^^^ (acc >>> 1) else acc >>> 1
+    let rec iter k acc =
+      if k = 0 then acc else iter (k-1) (nextValue acc)
+    [| 0u .. 255u |] |> Array.map (iter 8)
+  
+  let calculate =
+    let inline f acc (x:byte) =
+      table.[int32 ((acc ^^^ (uint32 x)) &&& 0xffu)] ^^^ (acc >>> 8)
+    Array.fold f defaultSeed >> (^^^) defaultSeed
+
+module Compression =
+
+  open System.IO  
+  open System.IO.Compression
+  open Snappy
+
+  let private apply compressionType compressionMode (data:byte[]) =
+    use source = new MemoryStream(data)
+    use destination = new MemoryStream()
+    use compresser = compressionType destination compressionMode false
+    source.CopyTo(compresser)
+    destination.ToArray()
+
+  let private compress   f data = apply f CompressionMode.Compress   data
+  let private decompress f data = apply f CompressionMode.Decompress data
+
+  let gzipCompress =
+    compress   (fun x y z -> new GZipStream(stream = x, mode = y, leaveOpen = z) :> Stream)
+  
+  let gzipDecompress =
+    decompress (fun x y z -> new GZipStream(stream = x, mode = y, leaveOpen = z) :> Stream)
+
+  let snappyCompress =
+    compress   (fun x y z -> new SnappyStream(stream = x, mode = y, leaveOpen = z) :> Stream)
+  
+  let snappyDecompress =
+    decompress (fun x y z -> new SnappyStream(stream = x, mode = y, leaveOpen = z) :> Stream)

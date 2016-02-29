@@ -59,11 +59,10 @@ batch and when we will send message we can get some messages lost.
  * make sure it still builds on linux and add CI config
  * make protocol types `internal`
  * throttle number of asynchronous requests to some limit
- * metadata refresh throws exception, better to return Result.Failure
  * retry ProduceMessages if they failed
  * impement MessageCodec for topics + single messages (in producer)
  * notify if topic is not created and server configured to not create topic... (for now somehow I'm successfully send messages to topics that I didn't create separately...)
- * implement ProducerType.Sync
+ * implement ProducerType.Sync (just await for async response and send each message - no batching)
  * implement test service that would use producer
  * run test with 1 producer and console consumer to see that it works...
  * check how it works on errors like (a. leader change) (b. node down)
@@ -74,9 +73,7 @@ batch and when we will send message we can get some messages lost.
  
  * no need for exceptions everywhere -> Result.Failure to have just message/exception...
  * reading response - we may succeed on reading size + correlationId but fail later, so we already should use this correlatorId for logging...
- * correlatorId for connect process and where it is not available `-1`
- * don't use RequestOrResponse under doing requests and saving the requests
- * don't use RequestOrResponse for responses
+ * move brokers dictionary from producer to another place, so consumer can reuse it
  
 [1]: http://kafka.apache.org/
 [2]: https://github.com/Jroland/kafka-net

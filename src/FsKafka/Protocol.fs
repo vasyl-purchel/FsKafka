@@ -196,21 +196,6 @@ module Protocol =
     { Size:               int32
       Message:            RequestOrResponseType }
 
-  module Optics =
-
-    let withCorrelator correlator message =
-      match message.Message with
-      | RequestMessage  r -> { message with Message = { r with CorrelationId = correlator } |> RequestMessage }
-      | ResponseMessage r -> { message with Message = { r with CorrelationId = correlator } |> ResponseMessage }
-
-    let getMetadataResponse requestOrResponse =
-      match requestOrResponse.Message with
-      | ResponseMessage r ->
-          match r.ResponseMessage with
-          | MetadataResponse r -> Some r
-          | _                  -> None
-      | RequestMessage  _ -> None
-    
   module Request =
 
     (* make requests:
@@ -231,6 +216,10 @@ module Protocol =
     let private apiVersion         = 0s
     let private messageVersion     = int8 0
     let private encodeTimeCreation = 0
+    
+    let requestWithCorrelator correlator (message:RequestMessage) =
+      { RequestOrResponse.Size = encodeTimeCreation
+        Message = { message with CorrelationId = correlator } |> RequestMessage }
 
     let private toApiKey = function
       //| LeaderAndIsr         _ -> 4s
@@ -243,23 +232,17 @@ module Protocol =
       | OffsetCommitRequest  _ -> 8s
       | OffsetFetchRequest   _ -> 9s
 
-    let private input size message =
-      { RequestOrResponse.Size = size
-        Message = message }
-
-    let private request clientId correlationId message =
+    let private requestMessage clientId message =
       { ApiKey         = message |> toApiKey
         ApiVersion     = apiVersion
-        CorrelationId  = correlationId
+        CorrelationId  = encodeTimeCreation
         ClientId       = clientId
         RequestMessage = message }
-      |> RequestOrResponseType.RequestMessage
-      |> input encodeTimeCreation
 
-    let metadata clientId correlationId topics =
+    let metadata clientId topics =
       { MetadataRequest.TopicName = topics }
       |> RequestType.MetadataRequest
-      |> request clientId correlationId
+      |> requestMessage clientId
 
     // messages = (Key * Value) list
     let mkMessageSet codec messages : MessageSet =
@@ -276,7 +259,7 @@ module Protocol =
       List.map (mapMessage >> wrap) messages
 
     // payload = (topic * ( (partitionId * MessageSet) list ) ) list
-    let produce clientId correlationId acks timeout payload =
+    let produce clientId acks timeout payload =
       let mapPartitions (partitionId, messages:MessageSet) : ProduceTopicPayload =
         { Partition                 = partitionId
           MessageSetSize            = messages.Length
@@ -289,7 +272,7 @@ module Protocol =
         Timeout                     = timeout
         Payload                     = payload |> List.map mapPayload }
       |> RequestType.ProduceRequest
-      |> request clientId correlationId
+      |> requestMessage clientId
       
     open Pickle
 
@@ -377,92 +360,89 @@ module Protocol =
 
     open Common
     open Unpickle
-
-    let inline private toResult f = function
-      | Failure err       -> sprintf "%A" err |> exn |> Common.Failure
-      | Success (data, _) -> f data |> Common.Success
-    
+//
+//    let inline private toResult = function
+//      | Failure err       -> sprintf "%A" err |> exn |> Common.Failure
+//      | Success (data, _) -> data |> Common.Success
+//    
     (* Metadata response *)
-    let private mkBroker (nodeId, host, port) : Broker =
-      { NodeId             = nodeId
-        Host               = host
-        Port               = port }
-    let private mkPartition (errorCode, partitionId, leader, replicas, isr) : PartitionMetadata =
-      { PartitionErrorCode = errorCode
-        PartitionId        = partitionId
-        Leader             = leader
-        Replicas           = replicas
-        Isr                = isr }
-    let private mkTopics (errorCode, name, partitions) : TopicMetadata =
-      { TopicErrorCode     = errorCode
-        TopicName          = name
-        PartitionMetadata  = partitions |> List.map mkPartition }
-    let private mkMetadata (brokers, topics) : MetadataResponse =
-      { Broker             = brokers    |> List.map mkBroker
-        TopicMetadata      = topics     |> List.map mkTopics }
+    let private brokerUnpickler stream = unpickle {
+      let! (nodeId, stream) = upInt32  stream
+      let! (host,   stream) = upString stream
+      let! (port,   stream) = upInt32  stream
+      return { NodeId = nodeId
+               Host   = host
+               Port   = port }, stream }
+    let private partitionMetadataUnpickler stream = unpickle {
+      let! (errorCode,   stream) = upInt16        stream
+      let! (partitionId, stream) = upInt32        stream
+      let! (leader,      stream) = upInt32        stream
+      let! (replicas,    stream) = upList upInt32 stream
+      let! (isr,         stream) = upList upInt32 stream
+      return { PartitionErrorCode = errorCode
+               PartitionId        = partitionId
+               Leader             = leader
+               Replicas           = replicas
+               Isr                = isr }, stream }
+    let private topicMetadataUnpickler stream = unpickle {
+      let! (errorCode,  stream) = upInt16                           stream
+      let! (name,       stream) = upString                          stream
+      let! (partitions, stream) = upList partitionMetadataUnpickler stream
+      return { TopicErrorCode     = errorCode
+               TopicName          = name
+               PartitionMetadata  = partitions }, stream }
+    let private metadataUnpickler stream = unpickle {
+      let! (brokers, stream) = upList brokerUnpickler        stream
+      let! (topics,  stream) = upList topicMetadataUnpickler stream
+      return { Broker        = brokers
+               TopicMetadata = topics }, stream }
 
-    let private brokerUnpickler            = upTriple upInt32 upString upInt32
-    let private partitionMetadataUnpickler = upQuintuple upInt16 upInt32 upInt32 (upList upInt32) (upList upInt32)
-    let private topicMetadataUnpickler     = upTriple upInt16 upString (upList partitionMetadataUnpickler)
-    let private metadataUnpickler          = upPair (upList brokerUnpickler) (upList topicMetadataUnpickler)
-
-    let private decodeMetadata data = decode metadataUnpickler data |> toResult mkMetadata
+    let private decodeMetadata data = decode metadataUnpickler data |> Result.map fst
     
     (* Produce response *)
-    let private mkTopicProducePayload (partition, errorCode, offset) : TopicProducedPayload =
-      { Partition          = partition
-        ErrorCode          = errorCode
-        Offset             = offset }
-    let private mkProduceResponsePayload (name, payloads) : ProduceResponsePayload =
-      { TopicName          = name
-        TopicPayload       = payloads |> List.map mkTopicProducePayload }
-    let private mkProduceResponse payloads =
-      payloads |> List.map mkProduceResponsePayload
+    let private produceTopicUnpickler stream = unpickle {
+      let! (partition, stream) = upInt32 stream
+      let! (errorCode, stream) = upInt16 stream
+      let! (offset,    stream) = upInt64 stream
+      return { TopicProducedPayload.Partition = partition
+               TopicProducedPayload.ErrorCode = errorCode
+               TopicProducedPayload.Offset    = offset }, stream }
+    let private producePayloadUnpickler stream = unpickle {
+      let! (name,     stream) = upString                     stream
+      let! (payloads, stream) = upList produceTopicUnpickler stream
+      return { ProduceResponsePayload.TopicName    = name
+               ProduceResponsePayload.TopicPayload = payloads }, stream }
+    let private produceUnpickler stream = unpickle {
+      return! upList producePayloadUnpickler stream }
 
-    let private produceTopicUnpickler      = upTriple upInt32 upInt16 upInt64
-    let private producePayloadUnpickler    = upPair upString (upList produceTopicUnpickler)
-    let private produceUnpickler           = upList producePayloadUnpickler
-
-    let private decodeProduce data = decode produceUnpickler data |> toResult mkProduceResponse
+    let private decodeProduce data = decode produceUnpickler data |> Result.map fst
     
     (* Common *)
     let private decodeResponse<'T> data =
       match typeof<'T> with
-      | t when t = typeof<MetadataResponse>     -> decodeMetadata data     |> maybe ResponseType.MetadataResponse
-      | t when t = typeof<ProduceResponse>      -> decodeProduce data      |> maybe ResponseType.ProduceResponse
-//      | t when t = typeof<FetchResponse>        -> decodeFetch data        |> maybe ResponseType.FetchResponse
-//      | t when t = typeof<OffsetResponse>       -> decodeOffset data       |> maybe ResponseType.OffsetResponse
-//      | t when t = typeof<OffsetCommitResponse> -> decodeOffsetCommit data |> maybe ResponseType.OffsetCommitResponse
-//      | t when t = typeof<OffsetFetchResponse>  -> decodeOffsetFetch data  |> maybe ResponseType.OffsetFetchResponse
+      | t when t = typeof<MetadataResponse>     -> decodeMetadata data     |> Result.map ResponseType.MetadataResponse
+      | t when t = typeof<ProduceResponse>      -> decodeProduce data      |> Result.map ResponseType.ProduceResponse
+//      | t when t = typeof<FetchResponse>        -> decodeFetch data        |> Result.map ResponseType.FetchResponse
+//      | t when t = typeof<OffsetResponse>       -> decodeOffset data       |> Result.map ResponseType.OffsetResponse
+//      | t when t = typeof<OffsetCommitResponse> -> decodeOffsetCommit data |> Result.map ResponseType.OffsetCommitResponse
+//      | t when t = typeof<OffsetFetchResponse>  -> decodeOffsetFetch data  |> Result.map ResponseType.OffsetFetchResponse
       | t -> sprintf "type not supported: %A" t |> failwith
     
     let private response correlationId message =
       { CorrelationId   = correlationId
         ResponseMessage = message }
-      |> RequestOrResponseType.ResponseMessage
 
-    let private output size message : RequestOrResponse =
-      { Size    = size
-        Message = message }
-        
-    let private toAsync v = async { return v }
-
-    let decode<'T> size correlationId data =
-      decodeResponse<'T> data |> maybe (response correlationId)|> maybe (output size) |> toAsync
+    let decode<'T> correlationId data =
+      decodeResponse<'T> data |> Result.map (response correlationId) |> Result.toAsync
 
     let decodeInt data =
-      Unpickle.decode upInt32 data |> toResult id |> toAsync
+      Unpickle.decode upInt32 data |> Result.map fst |> Result.toAsync
 
-    let requestToResponseDecode request = async {
-      match request.Message with
-      | RequestMessage r ->
-          let decode =
-            match r.RequestMessage with
-            | MetadataRequest     _ -> decode<MetadataResponse>
-            | ProduceRequest      _ -> decode<ProduceResponse>
-            | FetchRequest        _ -> decode<FetchResponse>
-            | OffsetRequest       _ -> decode<OffsetResponse>
-            | OffsetCommitRequest _ -> decode<OffsetCommitResponse>
-            | OffsetFetchRequest  _ -> decode<OffsetFetchResponse>
-          return decode |> Common.Success
-      | _ -> return exn "Response in the requests" |> Common.Failure }
+    let decoderFor = function
+      | MetadataRequest     _ -> decode<MetadataResponse>     |> Result.Success |> Result.toAsync
+      | ProduceRequest      _ -> decode<ProduceResponse>      |> Result.Success |> Result.toAsync
+      | FetchRequest        _ -> decode<FetchResponse>        |> Result.Success |> Result.toAsync
+      | OffsetRequest       _ -> decode<OffsetResponse>       |> Result.Success |> Result.toAsync
+      | OffsetCommitRequest _ -> decode<OffsetCommitResponse> |> Result.Success |> Result.toAsync
+      | OffsetFetchRequest  _ -> decode<OffsetFetchResponse>  |> Result.Success |> Result.toAsync
+      

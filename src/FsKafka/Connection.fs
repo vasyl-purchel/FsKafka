@@ -146,21 +146,21 @@ module Connection =
     { Client: Client
       Reader: MailboxProcessor<unit> }
   
-  let readAgent (client : Client, cancellationToken, handler: Async<Result<int * int * byte[]>> -> Async<unit>) =
-    let readLoop () = asyncResult {
-      let! sizeBytes       = client.ReadAsync(-1, 4, cancellationToken)
-      let! size            = Response.decodeInt sizeBytes
-      let! correlatorBytes = client.ReadAsync(-1, 4, cancellationToken)
-      let! correlator      = Response.decodeInt correlatorBytes
-      let! messageData     = client.ReadAsync (-1, size - 4, cancellationToken)
-      return (size, correlator, messageData) }
-
-    let rec loop (inbox:MailboxProcessor<unit>) = async {
-      let! _ = inbox.Receive()
-      do! readLoop() |> handler
-      return! loop inbox }
-
-    MailboxProcessor<unit>.Start(loop, cancellationToken)
+//  let readAgent (client : Client, cancellationToken, handler: Async<Result<int * int * byte[]>> -> Async<unit>) =
+//    let readLoop () = asyncResult {
+//      let! sizeBytes       = client.ReadAsync(-1, 4, cancellationToken)
+//      let! size            = Response.decodeInt sizeBytes
+//      let! correlatorBytes = client.ReadAsync(-1, 4, cancellationToken)
+//      let! correlator      = Response.decodeInt correlatorBytes
+//      let! messageData     = client.ReadAsync (-1, size - 4, cancellationToken)
+//      return (size, correlator, messageData) }
+//
+//    let rec loop (inbox:MailboxProcessor<unit>) = async {
+//      let! _ = inbox.Receive()
+//      do! readLoop() |> handler
+//      return! loop inbox }
+//
+//    MailboxProcessor<unit>.Start(loop, cancellationToken)
 
   type T(config:Config, io: unit -> IAsyncIO) =
     let verbosef f = verbosef config.Log "FsKafka.Connection" f
@@ -173,7 +173,7 @@ module Connection =
       then Interlocked.Exchange(correlator, 0) |> ignore
       Interlocked.Increment correlator
 
-    let requests = new ConcurrentDictionary<int, RequestOrResponse * TaskCompletionSource<RequestOrResponse>>()
+    let requests = new ConcurrentDictionary<int, RequestMessage * TaskCompletionSource<ResponseMessage>>()
 
     let tryRemoveRequest id = async {
       match requests.TryRemove id with
@@ -186,10 +186,10 @@ module Connection =
       | false -> return sprintf "couldn't set the result for %i" id |> exn |> Failure }
 
     let handleResponse response = asyncResult {
-      let! (size, correlator, data) = response
-      let! (request, source)        = tryRemoveRequest correlator
-      let! decode                   = FsKafka.Protocol.Response.requestToResponseDecode request
-      let! response                 = decode size correlator data
+      let! (_, correlator, data) = response
+      let! (request, source)     = tryRemoveRequest correlator
+      let! decode                = Response.decoderFor request.RequestMessage
+      let! response              = decode correlator data
       do! trySetResult correlator source response }
 
     let processResponse data = async {
@@ -205,7 +205,8 @@ module Connection =
       verbosef (fun f -> f "Opening connection to host=%s, port=%i" host port)
       let client = new Client(config.Log, io (), host, port)
       verbosef (fun f -> f "Starting single reader for host=%s, port=%i" host port)
-      let reader = readAgent(client, client.CancellationToken, processResponse)
+      let read (size, token) = client.ReadAsync(-1, size, token)
+      let reader = readAgent read Response.decodeInt client.CancellationToken processResponse
       { Client = client; Reader = reader }
 
     let addNewBrokers newBrokers =
@@ -235,10 +236,10 @@ module Connection =
       
     let send endpoint request = async {
       let correlationId  = nextCorrelator()
-      let encodedRequest = request |> FsKafka.Protocol.Optics.withCorrelator correlationId |> FsKafka.Protocol.Request.encode
+      let encodedRequest = request |> Request.requestWithCorrelator correlationId |> FsKafka.Protocol.Request.encode
       let broker         = brokers.[endpoint].Force()
       // save request to the requests dict
-      let completionSource = new TaskCompletionSource<RequestOrResponse>()
+      let completionSource = new TaskCompletionSource<ResponseMessage>()
       match requests.TryAdd(correlationId, (request, completionSource)) with
       | true  ->
           let! writeResult   = broker.Client.WriteAsync(correlationId, encodedRequest)

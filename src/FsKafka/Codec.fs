@@ -2,8 +2,7 @@
 
 open System
 open System.Text
-open System.Linq
-open System.IO
+open FsKafka.Common
 
 module Pickle =
 
@@ -44,20 +43,17 @@ module Unpickle =
     { Size:       int
       Offset:     int
       StreamSize: int }
+
   type UnfinishedParsingError =
     { Offset:     int
       StreamSize: int }
-  type UpErrors =
-    | OutOfBoundaries of OutOfBoundariesError
-    | UnfinishedParsing of UnfinishedParsingError
+
+  exception OutOfBoundariesException of OutOfBoundariesError
+  exception UnfinishedParsingException of UnfinishedParsingError
 
   type UpStream = byte[] * int
 
-  type UpResult<'a> =
-    | Success of 'a * UpStream
-    | Failure of UpErrors
-  
-  type Unpickler<'a> = UpStream -> UpResult<'a>
+  type Unpickler<'a> = UpStream -> Result<'a * UpStream>
 
   type UnpickleBuilder() =
     member x.Bind (v, f)  =
@@ -65,28 +61,26 @@ module Unpickle =
       | Success(r, s) -> f (r, s)
       | Failure err   -> Failure err
     member x.ReturnFrom m = m
+    member x.Return     v = Success(v)
     
   let unpickle = UnpickleBuilder()
-
-  let upPair      uA uB          stream = unpickle { let! (a, streamA) = uA stream
-                                                     let! (b, streamB) = uB streamA
-                                                     return! Success((a, b), streamB) }
-  let upTriple    uA uB uC       stream = unpickle { let! ((a, b), streamB) = upPair uA uB stream
-                                                     let! (c, streamC) = uC streamB
-                                                     return! Success((a, b, c), streamC) }
-  let upQuadruple uA uB uC uD    stream = unpickle { let! ((a, b, c), streamC) = upTriple uA uB uC stream
-                                                     let! (d, streamD) = uD streamC
-                                                     return! Success((a, b, c, d), streamD) }
-  let upQuintuple uA uB uC uD uE stream = unpickle { let! ((a, b, c, d), streamD) = upQuadruple uA uB uC uD stream
-                                                     let! (e, streamE) = uE streamD
-                                                     return! Success((a, b, c, d, e), streamE) }
-    
-  let private forceBigEndian (value:byte[]) =
-    if BitConverter.IsLittleEndian then value |> Array.rev else value
-
+//
+//  let upPair      uA uB          stream = unpickle { let! (a, streamA) = uA stream
+//                                                     let! (b, streamB) = uB streamA
+//                                                     return! Success((a, b), streamB) }
+//  let upTriple    uA uB uC       stream = unpickle { let! ((a, b), streamB) = upPair uA uB stream
+//                                                     let! (c, streamC) = uC streamB
+//                                                     return! Success((a, b, c), streamC) }
+//  let upQuadruple uA uB uC uD    stream = unpickle { let! ((a, b, c), streamC) = upTriple uA uB uC stream
+//                                                     let! (d, streamD) = uD streamC
+//                                                     return! Success((a, b, c, d), streamD) }
+//  let upQuintuple uA uB uC uD uE stream = unpickle { let! ((a, b, c, d), streamD) = upQuadruple uA uB uC uD stream
+//                                                     let! (e, streamE) = uE streamD
+//                                                     return! Success((a, b, c, d, e), streamE) }
+//    
   let private decodePart size forceBigEndian f (data:byte[], offset:int) =
     if data.Length <= size + offset - 1
-    then Failure(UpErrors.OutOfBoundaries{ Size = size; Offset = offset; StreamSize = data.Length })
+    then Failure(OutOfBoundariesException { Size = size; Offset = offset; StreamSize = data.Length })
     else
       let value = Array.init size (fun i -> data.[i + offset])
       if forceBigEndian && BitConverter.IsLittleEndian
@@ -109,7 +103,7 @@ module Unpickle =
     | Failure err           -> Failure err
     
   let upList<'a> (unpickler:Unpickler<'a>) stream =
-    let rec f count g (state:UpResult<'a list>) =
+    let rec f count g state =
       match count with
       | 0 -> match state with
              | Success(l, s) -> Success(l |> List.rev, s)
@@ -131,44 +125,3 @@ module Unpickle =
     let! (a, (data, offset)) = u (data, 0)
     return! Success(a, (data, offset)) }
     
-module Crc32 =
-  let defaultPolynomial = 0xedb88320u
-  let defaultSeed       = 0xFFffFFffu
-  let table             =
-    let inline nextValue acc =
-      if 0u <> (acc &&& 1u) then defaultPolynomial ^^^ (acc >>> 1) else acc >>> 1
-    let rec iter k acc =
-      if k = 0 then acc else iter (k-1) (nextValue acc)
-    [| 0u .. 255u |] |> Array.map (iter 8)
-  
-  let calculate =
-    let inline f acc (x:byte) =
-      table.[int32 ((acc ^^^ (uint32 x)) &&& 0xffu)] ^^^ (acc >>> 8)
-    Array.fold f defaultSeed >> (^^^) defaultSeed
-
-module Compression =
-  
-  open System.IO.Compression
-  open Snappy
-
-  let private apply compressionType compressionMode (data:byte[]) =
-    use source = new MemoryStream(data)
-    use destination = new MemoryStream()
-    use compresser = compressionType destination compressionMode false
-    source.CopyTo(compresser)
-    destination.ToArray()
-
-  let private compress   f data = apply f CompressionMode.Compress   data
-  let private decompress f data = apply f CompressionMode.Decompress data
-
-  let gzipCompress =
-    compress   (fun x y z -> new GZipStream(stream = x, mode = y, leaveOpen = z) :> Stream)
-  
-  let gzipDecompress =
-    decompress (fun x y z -> new GZipStream(stream = x, mode = y, leaveOpen = z) :> Stream)
-
-  let snappyCompress =
-    compress   (fun x y z -> new SnappyStream(stream = x, mode = y, leaveOpen = z) :> Stream)
-  
-  let snappyDecompress =
-    decompress (fun x y z -> new SnappyStream(stream = x, mode = y, leaveOpen = z) :> Stream)

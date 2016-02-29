@@ -78,7 +78,7 @@ module Producer =
         |> Seq.groupBy(fun (_, _, m) -> m.Topic)
         |> Seq.map toTopicPayload
         |> List.ofSeq
-      let request = FsKafka.Protocol.Request.produce config.ClientId 0 config.RequestRequiredAcks config.RequestTimeoutMs payload
+      let request = Request.produce config.ClientId config.RequestRequiredAcks config.RequestTimeoutMs payload
       let! writeResult = connection.Send(endpoint, request)
       match writeResult with
       | Success r -> verbosef (fun f -> f "Batch sent to Host=%s, Port=%i, BatchSize=%i, Response=%A" endpoint.Host endpoint.Port (batch |> Seq.length) r)

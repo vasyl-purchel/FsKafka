@@ -3,6 +3,7 @@
 open NUnit.Framework
 open FsUnit
 open FsKafka
+open FsKafka.Common
 
 [<TestFixture>]
 module CodecTests =
@@ -21,7 +22,6 @@ module CodecTests =
                   RequestMessage = requestMessage } }
   let makeMetadataRequest id topics =
     makeBaseRequest 3s id (RequestType.Metadata {TopicName = topics})
-  let requestMessageToTuple (r:RequestMessage) = (r.ApiKey, r.ApiVersion, r.CorrelationId, r.ClientId, r.RequestMessage)
   
   let requestType (r:RequestType) =
     match r with
@@ -46,16 +46,26 @@ module CodecTests =
 
   type Response = { ApiKey: int16;  ApiVersion: int16; CorrelationId: string; RequestMessage: Metadata }
   
-  let makeResp (apiKey, apiVersion, correlationId, topics) = {ApiKey = apiKey; ApiVersion = apiVersion; CorrelationId = correlationId; RequestMessage = { TopicName = topics } }
-  let respEncoder (r:Response) = (Pickle.pInt16 r.ApiKey) >> (Pickle.pInt16 r.ApiVersion) >> (Pickle.pString r.CorrelationId) >> (Pickle.pList Pickle.pString r.RequestMessage.TopicName)
-  let decoder = Unpickle.upQuadruple Unpickle.upInt16 Unpickle.upInt16 Unpickle.upString (Unpickle.upList Unpickle.upString)
+  let respEncoder (r:Response) =
+    (Pickle.pInt16 r.ApiKey)
+    >> (Pickle.pInt16 r.ApiVersion)
+    >> (Pickle.pString r.CorrelationId)
+    >> (Pickle.pList Pickle.pString r.RequestMessage.TopicName)
+
+  let decoder stream = Unpickle.unpickle {
+    let! (apiKey,        stream) = Unpickle.upInt16                  stream
+    let! (apiVersion,    stream) = Unpickle.upInt16                  stream
+    let! (correlationId, stream) = Unpickle.upString                 stream
+    let! (topics,        stream) = Unpickle.upList Unpickle.upString stream
+    return { ApiKey         = apiKey
+             ApiVersion     = apiVersion
+             CorrelationId  = correlationId
+             RequestMessage = { TopicName = topics } }, stream }
   
   [<Test>]
   let ``Decode metadata response should produce correct instance`` () =
     let resp = {ApiKey = 3s; ApiVersion = 0s; CorrelationId = "FsKafka"; RequestMessage = { TopicName = ["TestTopic"; "TestTopic2"]}}
     let encodedResp = Pickle.encode respEncoder resp
     Unpickle.decode decoder encodedResp
-    |> function
-       | Unpickle.Success((r), _) -> makeResp r
-       | Unpickle.Failure err     -> failwith (sprintf "expected Unpickle.Success but for Failure: %A" err)
+    |> Result.map fst |> Result.get
     |> should equal resp
