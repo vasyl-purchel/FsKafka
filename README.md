@@ -62,7 +62,7 @@ batch and when we will send message we can get some messages lost.
  * retry ProduceMessages if they failed
  * impement MessageCodec for topics + single messages (in producer)
  * notify if topic is not created and server configured to not create topic... (for now somehow I'm successfully send messages to topics that I didn't create separately...)
- * implement ProducerType.Sync (just await for async response and send each message - no batching)
+ * implement ProducerType.Sync (done partialy)
  * implement test service that would use producer
  * run test with 1 producer and console consumer to see that it works...
  * check how it works on errors like (a. leader change) (b. node down)

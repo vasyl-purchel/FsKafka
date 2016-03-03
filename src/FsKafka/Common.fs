@@ -8,6 +8,7 @@ open System.Collections.Generic
 module Common =
 
   type Result<'T> = Success of 'T | Failure of Exception
+  type AsyncResult<'T> = Async<Result<'T>>
 
   module Result =
     let bind f = function
@@ -19,6 +20,13 @@ module Common =
     let get = function
       | Success v -> v
       | Failure e -> sprintf "Expected Result.Success(x) but received Result.Error(%A)" e |> failwith
+
+    type ResultBuilder () =
+      member x.Return  v      = Success v
+      member x.Bind    (v, f) = bind f v
+
+    let result = ResultBuilder()
+
     let toAsync v = async { return v }
 
   let asyncToResult (computation:Async<'T>) = async {
@@ -28,8 +36,8 @@ module Common =
     | Choice2Of2 e -> return Failure e }
   
   let inline keyValueToTuple (pair:KeyValuePair<_,_>) = pair.Key, pair.Value
-
-  let ensureSingleThread () =
+    
+  let ensureAsyncSingleThread () =
     let correlator = ref 0
     fun computation -> async {
       if Interlocked.Increment correlator = 1
@@ -50,8 +58,6 @@ module Common =
     tcs.Task |> Async.AwaitTask
     
   module AsyncResult =
-    type AsyncResult<'T> = Async<Result<'T>>
-  
     let mreturn v = async { return Success v }
     let bind f v = async {
       let! result = v
@@ -97,10 +103,10 @@ module Common =
   
   let batchAgent<'T> (batchSize, timeout) = BatchAgent<'T>(batchSize, timeout)
 
-  let readAgent (readAsync:         int * CancellationToken -> Async<Result<byte[]>>)
-                (codec:             byte[] -> Async<Result<int>>)
+  let readAgent (readAsync:         int * CancellationToken -> AsyncResult<byte[]>)
+                (codec:             byte[] -> AsyncResult<int>)
                 (cancellationToken: CancellationToken)
-                (handler:           Async<Result<int * int * byte[]>> -> Async<unit>) =
+                (handler:           AsyncResult<int * int * byte[]> -> Async<unit>) =
     let readLoop () = asyncResult {
       let! sizeBytes       = readAsync(4, cancellationToken)
       let! size            = codec sizeBytes

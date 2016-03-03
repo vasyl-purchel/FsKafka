@@ -49,6 +49,7 @@
     <Compile Include="Codec.fs" />
     <Compile Include="Protocol.fs" />
     <Compile Include="Logging.fs" />
+    <Compile Include="Socket.fs" />
     <Compile Include="Connection.fs" />
     <Compile Include="MetadataProvider.fs" />
     <Compile Include="Producer.fs" />

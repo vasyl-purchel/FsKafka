@@ -18,6 +18,7 @@ module Protocol =
     | MessageSizeTooLarge                 = 10
     | StaleControllerEpochCode            = 11
     | OffsetMetadataTooLargeCode          = 12
+    | StaleLeaderEpochCode                = 13
     | OffsetsLoadInProgressCode           = 14
     | ConsumerCoordinatorNotAvailableCode = 15
     | NotCoordinatorForConsumerCode       = 16
@@ -433,16 +434,16 @@ module Protocol =
         ResponseMessage = message }
 
     let decode<'T> correlationId data =
-      decodeResponse<'T> data |> Result.map (response correlationId) |> Result.toAsync
+      decodeResponse<'T> data |> Result.map (response correlationId)
 
     let decodeInt data =
-      Unpickle.decode upInt32 data |> Result.map fst |> Result.toAsync
+      Unpickle.decode upInt32 data |> Result.map fst
 
     let decoderFor = function
-      | MetadataRequest     _ -> decode<MetadataResponse>     |> Result.Success |> Result.toAsync
-      | ProduceRequest      _ -> decode<ProduceResponse>      |> Result.Success |> Result.toAsync
-      | FetchRequest        _ -> decode<FetchResponse>        |> Result.Success |> Result.toAsync
-      | OffsetRequest       _ -> decode<OffsetResponse>       |> Result.Success |> Result.toAsync
-      | OffsetCommitRequest _ -> decode<OffsetCommitResponse> |> Result.Success |> Result.toAsync
-      | OffsetFetchRequest  _ -> decode<OffsetFetchResponse>  |> Result.Success |> Result.toAsync
+      | MetadataRequest     _ -> decode<MetadataResponse>     |> Result.Success
+      | ProduceRequest      _ -> decode<ProduceResponse>      |> Result.Success
+      | FetchRequest        _ -> decode<FetchResponse>        |> Result.Success
+      | OffsetRequest       _ -> decode<OffsetResponse>       |> Result.Success
+      | OffsetCommitRequest _ -> decode<OffsetCommitResponse> |> Result.Success
+      | OffsetFetchRequest  _ -> decode<OffsetFetchResponse>  |> Result.Success
       

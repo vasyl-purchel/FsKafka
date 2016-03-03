@@ -4,6 +4,7 @@ open FsKafka.Common
 open FsKafka.Protocol
 open FsKafka.Logging
 open System
+open System.Threading
 open System.Collections.Generic
 
 module MetadataProvider =
@@ -27,28 +28,20 @@ module MetadataProvider =
   exception ServerUnreachableException  of unit
   exception UnexpectedException         of string
 
-  type T(config:Config, connection:Connection.T, ?errorHandler:exn -> unit) =
+  type T(config:Config, connection:Connection.T) =
     let verbosef f = verbosef config.Log "FsKafka.MetadataProvider" f
-    let fatale     = fatale   config.Log "FsKafka.MetadataProvider"
+    let failWith e = fatale config.Log "FsKafka.MetadataProvider" e ""; raise e
     
-    let defaultErrorHandler (exn:exn) : unit =
-      fatale exn ""
-      exit(1)
-
-    let errorEvent = new Event<exn>()
-
+    let locker = obj()
     let metadata = new Dictionary<TopicName, Dictionary<PartitionId, Connection.Endpoint>>()
     
-    let checkpoint         = AsyncCheckpoint()
-    let ensureSingleThread = ensureSingleThread()
-
-    let rec validateBrokers acc = function
+    let rec validateBrokers  acc = function
       | []    -> acc
       | x::xs ->
           match (x.NodeId, x.Host, x.Port) with
           | (-1, _, _)                             -> validateBrokers false xs
-          | ( _, h, _) when String.IsNullOrEmpty h -> BrokerHostMissingException() |> errorEvent.Trigger; false
-          | ( _, _, p) when p <= 0                 -> BrokerPortMissingException() |> errorEvent.Trigger; false
+          | ( _, h, _) when String.IsNullOrEmpty h -> BrokerHostMissingException() |> failWith
+          | ( _, _, p) when p <= 0                 -> BrokerPortMissingException() |> failWith
           | _                                      -> validateBrokers acc xs
       
     let rec validateMetadata acc = function
@@ -59,9 +52,9 @@ module MetadataProvider =
           | c when c = int16 ErrorResponseCode.LeaderNotAvailable                  -> validateMetadata false xs
           | c when c = int16 ErrorResponseCode.OffsetsLoadInProgressCode           -> validateMetadata false xs
           | c when c = int16 ErrorResponseCode.ConsumerCoordinatorNotAvailableCode -> validateMetadata false xs
-          | c                       -> TopicErrorReceivedException(x.TopicName, c) |> errorEvent.Trigger; false
+          | c                                        -> TopicErrorReceivedException(x.TopicName, c) |> failWith
 
-    let updateBrokers brokers =
+    let updateBrokers brokers    =
       brokers
       |> List.map (fun b -> {Connection.Endpoint.Host = b.Host; Connection.Endpoint.Port = b.Port})
       |> Set.ofList 
@@ -78,48 +71,44 @@ module MetadataProvider =
               let endpoint = { Connection.Endpoint.Host = broker.Host; Connection.Endpoint.Port = broker.Port }
               partitions.Add(partition.PartitionId |> PartitionId, endpoint) )
           metadata.Add(topic.TopicName |> TopicName, partitions) )
+    
+    let rec refreshMetadataLoop request attempt =
+      let refreshResult = connection.TryPick request
+      match refreshResult with
+      | Some r ->
+          match r.ResponseMessage with
+          | MetadataResponse r ->
+              verbosef (fun f -> f "Received metadata response: %A" r)
+              let brokersValid  = r.Broker        |> validateBrokers true
+              let metadataValid = r.TopicMetadata |> validateMetadata true
+              if brokersValid && metadataValid then
+                r.Broker |> updateBrokers
+                r.TopicMetadata |> updateMetadata (fun id -> r.Broker |> List.find(fun b -> b.NodeId = id))
+              else
+                Thread.Sleep (attempt * attempt * config.RetryBackoffMs)
+                refreshMetadataLoop request (attempt + 1)
+          | _  -> sprintf "received not metadataResponse: %A" r |> UnexpectedException |> failWith
+      | None   -> ServerUnreachableException() |> failWith
 
     let refreshMetadata newTopics =
       let currentTopics = metadata.Keys |> Set.ofSeq |> Set.map (fun (TopicName s) -> s)
       let topics = newTopics + currentTopics |> Set.toList
-
-      let rec loop request attempt = async {
-        let refreshResult = connection.TryPick request
-        match refreshResult with
-        | Some r ->
-            match r.ResponseMessage with
-            | MetadataResponse r ->
-                verbosef (fun f -> f "Received metadata response: %A" r)
-                let brokersValid  = r.Broker        |> validateBrokers true
-                let metadataValid = r.TopicMetadata |> validateMetadata true
-                if brokersValid && metadataValid then
-                  r.Broker |> updateBrokers
-                  r.TopicMetadata |> updateMetadata (fun id -> r.Broker |> List.find(fun b -> b.NodeId = id))
-                else
-                  do! Async.Sleep (attempt * attempt * config.RetryBackoffMs)
-                  return! loop request (attempt + 1)
-            | _  -> UnexpectedException( sprintf "received not metadataResponse: %A" r) |> errorEvent.Trigger
-        | None   -> ServerUnreachableException() |> errorEvent.Trigger }
-
       let request = Request.metadata config.ClientId topics
-      ensureSingleThread (checkpoint.WithClosedDoors (loop request 0))
+      refreshMetadataLoop request 0
 
     let toMetadata topic =
-      checkpoint.OnPassage (async {
-        if not (metadata.ContainsKey (TopicName topic))
-        then do! [topic] |> Set.ofList |> refreshMetadata
+      lock (locker) ( fun _ ->
+        if not (metadata.ContainsKey (TopicName topic)) then [topic] |> Set.ofList |> refreshMetadata
         let result = metadata.[topic |> TopicName] |> Seq.map keyValueToTuple |> List.ofSeq
-        return Result.Success(topic, result) })
+        Success(topic, result) )
+    
+    let refreshMetadataForTopics topics = lock(locker) (fun _ -> topics |> Set.ofList |> refreshMetadata)
 
     do
-      match errorHandler with
-      | Some handler -> errorEvent.Publish.Add(handler)
-      | Option.None  -> errorEvent.Publish.Add(defaultErrorHandler)
-      if not config.TestConnectionTopics.IsEmpty then
-        config.TestConnectionTopics |> Set.ofList |> refreshMetadata |> Async.Start
-      else ensureSingleThread (checkpoint.WithClosedDoors (async { verbosef (fun f -> f "opening doors for metadata") } ) ) |> Async.Start
+      if not config.TestConnectionTopics.IsEmpty
+      then refreshMetadataForTopics config.TestConnectionTopics
 
-    member x.RefreshMetadata topics = topics |> Set.ofList |> refreshMetadata
+    member x.RefreshMetadata topics = refreshMetadataForTopics topics
     member x.BrokersFor      topic  = topic  |> toMetadata
 
-  let create config connection = T(config, connection)
+  let  create config connection = T(config, connection)

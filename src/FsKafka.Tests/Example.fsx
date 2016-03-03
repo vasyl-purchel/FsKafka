@@ -6,14 +6,15 @@ let endpoints = [ "192.168.99.100", 9092 ]
 let connection = Connection.create { Connection.defaultConfig with MetadataBrokersList = endpoints }
 let metadataProvider = MetadataProvider.create MetadataProvider.defaultConfig connection
 let messageCodec (s:string) = System.Text.Encoding.UTF8.GetBytes(s)
-let producer = Producer.start<string> (Producer.defaultConfig messageCodec) connection metadataProvider
+let producer = Producer.start<string> {Producer.defaultConfig messageCodec with ProducerType = Producer.Async} connection metadataProvider
+Producer.send producer "hello" [||] "Test message"
 
 let rec loop () =
   let line = System.Console.ReadLine()
   match line with
   | "quit" -> ()
   | msg    ->
-      Producer.send producer "hello" [||] "Test message"
+      Producer.send producer "test" [||] "Test message"
       printfn ">> Sent %s" msg
       loop ()
 loop ()
