@@ -96,6 +96,10 @@ module Producer =
           verbosee e (sprintf "Batch failed on Host=%s, Port=%i, BatchSize=%i" endpoint.Host endpoint.Port (batch |> Seq.length))
           match e with
           | :? Connection.FailedAddingRequestException -> () (*safe to retry*)
+          | :? Connection.RequestTimedOutException     -> () (*safe to retry after metadata refresh*)
+          | :? Common.PassageDeclinedException         -> () (*safe to retry after metadata refresh*)
+          | :? Socket.SocketDisconnectedException      -> () (*may happen on read, so it was sent but might not acknowledged*)
+          | e                                          -> () (*not so safe as it might be sent...*)
           (*write result failed*)
           (*response await failed*)
           (*response contains errorCodes...*) }

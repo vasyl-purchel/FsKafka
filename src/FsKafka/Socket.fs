@@ -53,7 +53,7 @@ module Tcp =
     | false, _ -> getIpFromDns host
 
   let connectAsync (client:TcpClient) host port token = async {
-    try return client.ConnectAsync(getIp host, port).Wait(cancellationToken = token) |> Success
+    try return client.Connect(getIp host, port) |> Success
     with e -> return Failure e }
     
   let connect (client:TcpClient) host port =
@@ -62,9 +62,8 @@ module Tcp =
 
   let readAsync (stream:NetworkStream) size token =
     let rec loop buffer offset = async {
-      let read = stream.ReadAsync(buffer, offset, size - offset)
-      read.Wait(cancellationToken = token)
-      match read.Result, size - offset with
+      let! readResult = stream.AsyncRead(buffer, offset, size - offset)
+      match readResult, size - offset with
       | 0, _             -> return Failure <| SocketDisconnectedException()
       | r, e when r >= e -> return Success buffer
       | r, _             -> return! loop buffer (offset + r) }
@@ -82,7 +81,9 @@ module Tcp =
     loop (Array.zeroCreate size) 0
 
   let writeAsync (stream:NetworkStream) data token = async {
-    try return stream.WriteAsync(data, 0, data.Length).Wait(cancellationToken = token) |> Success
+    try
+      let! _ = stream.AsyncWrite(data, 0, data.Length)
+      return Success()
     with e -> return Failure e }
 
   let write (stream:NetworkStream) data =

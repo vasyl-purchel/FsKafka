@@ -122,6 +122,8 @@ module Common =
 
     MailboxProcessor<unit>.Start(loop, cancellationToken)
 
+  exception PassageDeclinedException of unit
+  
   type AsyncCheckpoint() =
     [<VolatileField>]
     let mutable m_tcs = ref (new TaskCompletionSource<bool>());
@@ -145,7 +147,7 @@ module Common =
       let! passage = Async.AwaitTask (!m_tcs).Task
       match passage with
       | true  -> return! computation
-      | false -> return exn "passage declined" |> Failure }
+      | false -> return PassageDeclinedException() |> Failure }
 
     member x.WithClosedDoors computation = async {
       reset()

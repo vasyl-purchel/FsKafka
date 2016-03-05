@@ -73,7 +73,6 @@ batch and when we will send message we can get some messages lost.
  
  * no need for exceptions everywhere -> Result.Failure to have just message/exception...
  * reading response - we may succeed on reading size + correlationId but fail later, so we already should use this correlatorId for logging...
- * move brokers dictionary from producer to another place, so consumer can reuse it
  
 [1]: http://kafka.apache.org/
 [2]: https://github.com/Jroland/kafka-net

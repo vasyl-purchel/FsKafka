@@ -195,9 +195,12 @@ type T(config:Config, asyncSocket: unit -> IAsyncSocket, syncSocket: unit -> ISy
             | Success _ ->
                 verbosef (fun f -> f "Request sent: CorrelationId=%i, Message=%A" correlationId request)
                 broker.RequestResponse()
-                let requestCancellationToken = new CancellationTokenSource(config.RequestTimeoutMs)
+                let requestCancellationToken = new CancellationTokenSource()
                 requestCancellationToken.Token.Register(fun () ->
                   cancelRequest completionSource correlationId endpoint.Host endpoint.Port) |> ignore
+                async {
+                  do! Async.Sleep config.RequestTimeoutMs
+                  requestCancellationToken.Cancel() } |> Async.Start
                 let! result = Async.AwaitTask completionSource.Task
                 return Some result |> Success
             | Failure e ->

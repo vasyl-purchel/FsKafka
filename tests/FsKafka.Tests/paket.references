@@ -1,0 +1,6 @@
+FSharp.Core
+Snappy.NET
+
+group Test
+NUnit
+NUnit.Runners

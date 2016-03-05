@@ -1,0 +1,23 @@
+type project
+owners
+    Vasyl Purchel
+authors 
+    Vasyl Purchel
+projectUrl
+    http://github.com/vasyl-purchel/FsKafka
+iconUrl
+    https://raw.githubusercontent.com/vasyl-purchel/FsKafka/master/docs/files/img/logo.png
+licenseUrl
+    http://github.com/vasyl-purchel/FsKafka/blob/master/LICENSE.txt
+requireLicenseAcceptance
+    false
+copyright
+    Copyright 2015
+tags
+    f# apache kafka fsharp
+summary
+    Native F# Apache Kafka client
+description
+    Apache Kafka F# native client (http://kafka.apache.org/)
+
+
