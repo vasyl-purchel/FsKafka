@@ -188,10 +188,10 @@ module Compression =
   let private decompress f data = apply f CompressionMode.Decompress data
 
   let gzipCompress =
-    compress   (fun x y z -> new GZipStream(stream = x, mode = y, leaveOpen = z) :> Stream)
+    compress   (fun (x:MemoryStream) (y:CompressionMode) (z:bool) -> new GZipStream(stream = x, mode = y, leaveOpen = z) :> Stream)
   
   let gzipDecompress =
-    decompress (fun x y z -> new GZipStream(stream = x, mode = y, leaveOpen = z) :> Stream)
+    decompress (fun (x:MemoryStream) (y:CompressionMode) (z:bool) -> new GZipStream(stream = x, mode = y, leaveOpen = z) :> Stream)
 
   let snappyCompress =
     compress   (fun x y z -> new SnappyStream(stream = x, mode = y, leaveOpen = z) :> Stream)
