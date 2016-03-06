@@ -1,7 +1,7 @@
 # FsKafka
 
 [![Build Status](https://travis-ci.org/vasyl-purchel/FsKafka.svg?branch=master)](https://travis-ci.org/vasyl-purchel/FsKafka)
-[![Build Status](https://ci.appveyor.com/api/projects/status/github/vasyl-purchel/?branch=master&svg=true)](https://ci.appveyor.com/project/VasylPurchel/fskafka)
+[![Build status](https://ci.appveyor.com/api/projects/status/0tvs4krihppac8fj?svg=true)](https://ci.appveyor.com/project/VasylPurchel/fskafka)
 [![Gitter](https://badges.gitter.im/vasyl-purchel/FsKafka.svg)](https://gitter.im/vasyl-purchel/FsKafka?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 F# client for [apache kafka][1]
