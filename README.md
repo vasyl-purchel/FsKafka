@@ -1,5 +1,7 @@
 # FsKafka
 
+[![Join the chat at https://gitter.im/vasyl-purchel/FsKafka](https://badges.gitter.im/vasyl-purchel/FsKafka.svg)](https://gitter.im/vasyl-purchel/FsKafka?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 F# client for [apache kafka][1]
 
 Places I'm looking to for ideas and to find how it should be done:
