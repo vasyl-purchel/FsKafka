@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>Tcp - FsKafka</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="description" content=""/>
+    <meta name="author" content="Vasyl Purchel"/>
+
+    <script src="https://code.jquery.com/jquery-1.8.0.js"></script>
+    <script src="https://code.jquery.com/ui/1.8.23/jquery-ui.js"></script>
+    <script src="https://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/js/bootstrap.min.js"></script>
+    <link href="https://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/css/bootstrap-combined.min.css" rel="stylesheet"/>
+
+    <link type="text/css" rel="stylesheet" href="/FsKafka/content/style.css" />
+    <script type="text/javascript" src="/FsKafka/content/tips.js"></script>
+    <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="container">
+      <div class="masthead">
+        <ul class="nav nav-pills pull-right">
+          <li><a href="http://fsharp.org">fsharp.org</a></li>
+          <li><a href="http://github.com/vasyl-purchel/FsKafka">github page</a></li>
+        </ul>
+        <h3 class="muted"><a href="/FsKafka/index.html">FsKafka</a></h3>
+      </div>
+      <hr />
+      <div class="row">
+        <div class="span9" id="main">
+          
+
+
+
+<h1>Tcp</h1>
+<p>
+  <span>Namespace: FsKafka</span><br />
+  <span>Parent Module: <a href="fskafka-socket.html">Socket</a></span>
+</p>
+<div class="xmldoc">
+</div>
+
+<!-- Render nested types and modules, if there are any -->
+
+  <h3>Functions and values</h3>
+  <table class="table table-bordered member-list">
+    <thead>
+      <tr><td>Function or value</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '89', 89)" onmouseover="showTip(event, '89', 89)">
+            connect client host port
+          </code>
+          <div class="tip" id="89">
+            <strong>Signature:</strong> client:TcpClient -&gt; host:string -&gt; port:int -&gt; Result&lt;unit&gt;<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Socket.fs#L77-77" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '90', 90)" onmouseover="showTip(event, '90', 90)">
+            connectAsync client host port token
+          </code>
+          <div class="tip" id="90">
+            <strong>Signature:</strong> client:TcpClient -&gt; host:string -&gt; port:int -&gt; token:CancellationToken -&gt; Async&lt;Result&lt;unit&gt;&gt;<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Socket.fs#L73-73" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '91', 91)" onmouseover="showTip(event, '91', 91)">
+            createAsync logger
+          </code>
+          <div class="tip" id="91">
+            <strong>Signature:</strong> logger:Logger -&gt; IAsyncSocket<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Socket.fs#L112-112" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '92', 92)" onmouseover="showTip(event, '92', 92)">
+            createSync logger
+          </code>
+          <div class="tip" id="92">
+            <strong>Signature:</strong> logger:Logger -&gt; ISyncSocket<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Socket.fs#L136-136" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '93', 93)" onmouseover="showTip(event, '93', 93)">
+            getIp host
+          </code>
+          <div class="tip" id="93">
+            <strong>Signature:</strong> host:string -&gt; IPAddress<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Socket.fs#L68-68" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '94', 94)" onmouseover="showTip(event, '94', 94)">
+            getIpFromDns host
+          </code>
+          <div class="tip" id="94">
+            <strong>Signature:</strong> host:string -&gt; IPAddress<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Socket.fs#L62-62" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '95', 95)" onmouseover="showTip(event, '95', 95)">
+            read stream size
+          </code>
+          <div class="tip" id="95">
+            <strong>Signature:</strong> stream:NetworkStream -&gt; size:int -&gt; Result&lt;byte []&gt;<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Socket.fs#L92-92" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '96', 96)" onmouseover="showTip(event, '96', 96)">
+            readAsync stream size token
+          </code>
+          <div class="tip" id="96">
+            <strong>Signature:</strong> stream:NetworkStream -&gt; size:int -&gt; token:CancellationToken -&gt; Async&lt;Result&lt;byte []&gt;&gt;<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Socket.fs#L81-81" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '97', 97)" onmouseover="showTip(event, '97', 97)">
+            write stream data
+          </code>
+          <div class="tip" id="97">
+            <strong>Signature:</strong> stream:NetworkStream -&gt; data:byte [] -&gt; Result&lt;unit&gt;<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Socket.fs#L106-106" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '98', 98)" onmouseover="showTip(event, '98', 98)">
+            writeAsync stream data token
+          </code>
+          <div class="tip" id="98">
+            <strong>Signature:</strong> stream:NetworkStream -&gt; data:byte [] -&gt; token:CancellationToken -&gt; Async&lt;Result&lt;unit&gt;&gt;<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Socket.fs#L102-102" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+        </div>
+        <div class="span3">
+          <img src="/FsKafka/img/logo.png" alt="F# Project" style="width:150px;margin:10px" />
+          <ul class="nav nav-list" id="menu" style="margin-top: 20px;">
+            <li class="nav-header">FsKafka</li>
+            <li><a href="/FsKafka/index.html">Home page</a></li>
+            <li class="divider"></li>
+            <li><a href="http://nuget.org/packages/FsKafka">Get Library via NuGet</a></li>
+            <li><a href="http://github.com/vasyl-purchel/FsKafka">Source Code on GitHub</a></li>
+            <li><a href="/FsKafka/license.html">License</a></li>
+            <li><a href="/FsKafka/release-notes.html">Release Notes</a></li>
+
+            <li class="nav-header">Getting started</li>
+            <li><a href="/FsKafka/tutorial.html">Sample tutorial</a></li>
+
+            <li class="nav-header">Documentation</li>
+            <li><a href="/FsKafka/reference/index.html">API Reference</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <a href="http://github.com/vasyl-purchel/FsKafka"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_gray_6d6d6d.png" alt="Fork me on GitHub"/></a>
+  </body>
+  </html>

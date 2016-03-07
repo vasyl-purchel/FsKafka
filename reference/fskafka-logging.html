@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>Logging - FsKafka</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="description" content=""/>
+    <meta name="author" content="Vasyl Purchel"/>
+
+    <script src="https://code.jquery.com/jquery-1.8.0.js"></script>
+    <script src="https://code.jquery.com/ui/1.8.23/jquery-ui.js"></script>
+    <script src="https://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/js/bootstrap.min.js"></script>
+    <link href="https://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/css/bootstrap-combined.min.css" rel="stylesheet"/>
+
+    <link type="text/css" rel="stylesheet" href="/FsKafka/content/style.css" />
+    <script type="text/javascript" src="/FsKafka/content/tips.js"></script>
+    <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="container">
+      <div class="masthead">
+        <ul class="nav nav-pills pull-right">
+          <li><a href="http://fsharp.org">fsharp.org</a></li>
+          <li><a href="http://github.com/vasyl-purchel/FsKafka">github page</a></li>
+        </ul>
+        <h3 class="muted"><a href="/FsKafka/index.html">FsKafka</a></h3>
+      </div>
+      <hr />
+      <div class="row">
+        <div class="span9" id="main">
+          
+
+
+
+<h1>Logging</h1>
+<p>
+  <span>Namespace: FsKafka</span><br />
+</p>
+<div class="xmldoc">
+</div>
+
+<!-- Render nested types and modules, if there are any -->
+  <h2>Nested types and modules</h2>
+  <div>
+      <table class="table table-bordered type-list">
+    <thead>
+      <tr><td>Type</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+        <tr>
+          <td class="type-name">
+            <a href="fskafka-logging-loglevel.html">LogLevel</a>
+          </td>
+          <td class="xmldoc"></td>
+        </tr>
+        <tr>
+          <td class="type-name">
+            <a href="fskafka-logging-logline.html">LogLine</a>
+          </td>
+          <td class="xmldoc"></td>
+        </tr>
+        <tr>
+          <td class="type-name">
+            <a href="fskafka-logging-logger.html">Logger</a>
+          </td>
+          <td class="xmldoc"></td>
+        </tr>
+    </tbody>
+  </table>
+
+  </div>
+
+  <h3>Functions and values</h3>
+  <table class="table table-bordered member-list">
+    <thead>
+      <tr><td>Function or value</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '28', 28)" onmouseover="showTip(event, '28', 28)">
+            combine loggers
+          </code>
+          <div class="tip" id="28">
+            <strong>Signature:</strong> loggers:Logger list -&gt; Logger<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L111-111" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '29', 29)" onmouseover="showTip(event, '29', 29)">
+            debug logger path message
+          </code>
+          <div class="tip" id="29">
+            <strong>Signature:</strong> logger:Logger -&gt; path:string -&gt; message:string -&gt; unit<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L67-67" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '30', 30)" onmouseover="showTip(event, '30', 30)">
+            debuge logger path exn message
+          </code>
+          <div class="tip" id="30">
+            <strong>Signature:</strong> logger:Logger -&gt; path:string -&gt; exn:exn -&gt; message:string -&gt; unit<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L69-69" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '31', 31)" onmouseover="showTip(event, '31', 31)">
+            debugef logger path exn fFormat
+          </code>
+          <div class="tip" id="31">
+            <strong>Signature:</strong> logger:Logger -&gt; path:string -&gt; exn:exn -&gt; fFormat:((&#39;?8035 -&gt; &#39;?8036) -&gt; &#39;?8037) -&gt; &#39;?8037<br />
+                          <strong>Type parameters:</strong> '?8035, '?8036, '?8037          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L70-70" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '32', 32)" onmouseover="showTip(event, '32', 32)">
+            debugf logger path fFormat
+          </code>
+          <div class="tip" id="32">
+            <strong>Signature:</strong> logger:Logger -&gt; path:string -&gt; fFormat:((&#39;?8030 -&gt; &#39;?8031) -&gt; &#39;?8032) -&gt; &#39;?8032<br />
+                          <strong>Type parameters:</strong> '?8030, '?8031, '?8032          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L68-68" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '33', 33)" onmouseover="showTip(event, '33', 33)">
+            defaultLogger minLevel
+          </code>
+          <div class="tip" id="33">
+            <strong>Signature:</strong> minLevel:LogLevel -&gt; Logger<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L95-95" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '34', 34)" onmouseover="showTip(event, '34', 34)">
+            error logger path message
+          </code>
+          <div class="tip" id="34">
+            <strong>Signature:</strong> logger:Logger -&gt; path:string -&gt; message:string -&gt; unit<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L77-77" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '35', 35)" onmouseover="showTip(event, '35', 35)">
+            errore logger path exn message
+          </code>
+          <div class="tip" id="35">
+            <strong>Signature:</strong> logger:Logger -&gt; path:string -&gt; exn:exn -&gt; message:string -&gt; unit<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L79-79" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '36', 36)" onmouseover="showTip(event, '36', 36)">
+            erroref logger path exn fFormat
+          </code>
+          <div class="tip" id="36">
+            <strong>Signature:</strong> logger:Logger -&gt; path:string -&gt; exn:exn -&gt; fFormat:((&#39;?8055 -&gt; &#39;?8056) -&gt; &#39;?8057) -&gt; &#39;?8057<br />
+                          <strong>Type parameters:</strong> '?8055, '?8056, '?8057          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L80-80" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '37', 37)" onmouseover="showTip(event, '37', 37)">
+            errorf logger path fFormat
+          </code>
+          <div class="tip" id="37">
+            <strong>Signature:</strong> logger:Logger -&gt; path:string -&gt; fFormat:((&#39;?8050 -&gt; &#39;?8051) -&gt; &#39;?8052) -&gt; &#39;?8052<br />
+                          <strong>Type parameters:</strong> '?8050, '?8051, '?8052          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L78-78" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '38', 38)" onmouseover="showTip(event, '38', 38)">
+            fatal logger path message
+          </code>
+          <div class="tip" id="38">
+            <strong>Signature:</strong> logger:Logger -&gt; path:string -&gt; message:string -&gt; unit<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L87-87" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '39', 39)" onmouseover="showTip(event, '39', 39)">
+            fatale logger path exn message
+          </code>
+          <div class="tip" id="39">
+            <strong>Signature:</strong> logger:Logger -&gt; path:string -&gt; exn:exn -&gt; message:string -&gt; unit<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L89-89" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '40', 40)" onmouseover="showTip(event, '40', 40)">
+            fatalef logger path exn fFormat
+          </code>
+          <div class="tip" id="40">
+            <strong>Signature:</strong> logger:Logger -&gt; path:string -&gt; exn:exn -&gt; fFormat:((&#39;?8075 -&gt; &#39;?8076) -&gt; &#39;?8077) -&gt; &#39;?8077<br />
+                          <strong>Type parameters:</strong> '?8075, '?8076, '?8077          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L90-90" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '41', 41)" onmouseover="showTip(event, '41', 41)">
+            fatalf logger path fFormat
+          </code>
+          <div class="tip" id="41">
+            <strong>Signature:</strong> logger:Logger -&gt; path:string -&gt; fFormat:((&#39;?8070 -&gt; &#39;?8071) -&gt; &#39;?8072) -&gt; &#39;?8072<br />
+                          <strong>Type parameters:</strong> '?8070, '?8071, '?8072          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L88-88" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '42', 42)" onmouseover="showTip(event, '42', 42)">
+            info logger path message
+          </code>
+          <div class="tip" id="42">
+            <strong>Signature:</strong> logger:Logger -&gt; path:string -&gt; message:string -&gt; unit<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L72-72" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '43', 43)" onmouseover="showTip(event, '43', 43)">
+            infoe logger path exn message
+          </code>
+          <div class="tip" id="43">
+            <strong>Signature:</strong> logger:Logger -&gt; path:string -&gt; exn:exn -&gt; message:string -&gt; unit<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L74-74" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '44', 44)" onmouseover="showTip(event, '44', 44)">
+            infoef logger path exn fFormat
+          </code>
+          <div class="tip" id="44">
+            <strong>Signature:</strong> logger:Logger -&gt; path:string -&gt; exn:exn -&gt; fFormat:((&#39;?8045 -&gt; &#39;?8046) -&gt; &#39;?8047) -&gt; &#39;?8047<br />
+                          <strong>Type parameters:</strong> '?8045, '?8046, '?8047          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L75-75" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '45', 45)" onmouseover="showTip(event, '45', 45)">
+            infof logger path fFormat
+          </code>
+          <div class="tip" id="45">
+            <strong>Signature:</strong> logger:Logger -&gt; path:string -&gt; fFormat:((&#39;?8040 -&gt; &#39;?8041) -&gt; &#39;?8042) -&gt; &#39;?8042<br />
+                          <strong>Type parameters:</strong> '?8040, '?8041, '?8042          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L73-73" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '46', 46)" onmouseover="showTip(event, '46', 46)">
+            log logger path level message
+          </code>
+          <div class="tip" id="46">
+            <strong>Signature:</strong> logger:Logger -&gt; path:string -&gt; level:LogLevel -&gt; message:string -&gt; unit<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L50-50" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '47', 47)" onmouseover="showTip(event, '47', 47)">
+            loge logger path level exn message
+          </code>
+          <div class="tip" id="47">
+            <strong>Signature:</strong> logger:Logger -&gt; path:string -&gt; level:LogLevel -&gt; exn:exn -&gt; message:string -&gt; unit<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L56-56" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '48', 48)" onmouseover="showTip(event, '48', 48)">
+            logef logger path level exn fFormat
+          </code>
+          <div class="tip" id="48">
+            <strong>Signature:</strong> logger:Logger -&gt; path:string -&gt; level:LogLevel -&gt; exn:exn -&gt; fFormat:((&#39;?8015 -&gt; &#39;?8016) -&gt; &#39;?8017) -&gt; &#39;?8017<br />
+                          <strong>Type parameters:</strong> '?8015, '?8016, '?8017          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L59-59" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '49', 49)" onmouseover="showTip(event, '49', 49)">
+            logf logger path level fFormat
+          </code>
+          <div class="tip" id="49">
+            <strong>Signature:</strong> logger:Logger -&gt; path:string -&gt; level:LogLevel -&gt; fFormat:((&#39;?8010 -&gt; &#39;?8011) -&gt; &#39;?8012) -&gt; &#39;?8012<br />
+                          <strong>Type parameters:</strong> '?8010, '?8011, '?8012          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L53-53" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '50', 50)" onmouseover="showTip(event, '50', 50)">
+            logLevelToInt _arg1
+          </code>
+          <div class="tip" id="50">
+            <strong>Signature:</strong> _arg1:LogLevel -&gt; int<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L26-26" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '51', 51)" onmouseover="showTip(event, '51', 51)">
+            logLevelToString _arg1
+          </code>
+          <div class="tip" id="51">
+            <strong>Signature:</strong> _arg1:LogLevel -&gt; string<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L34-34" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '52', 52)" onmouseover="showTip(event, '52', 52)">
+            mkLogLine path level ex message
+          </code>
+          <div class="tip" id="52">
+            <strong>Signature:</strong> path:string -&gt; level:LogLevel -&gt; ex:exn option -&gt; message:string -&gt; LogLine<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L42-42" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '53', 53)" onmouseover="showTip(event, '53', 53)">
+            valid minLevel level
+          </code>
+          <div class="tip" id="53">
+            <strong>Signature:</strong> minLevel:LogLevel -&gt; level:LogLevel -&gt; bool<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L92-92" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '54', 54)" onmouseover="showTip(event, '54', 54)">
+            verbose logger path message
+          </code>
+          <div class="tip" id="54">
+            <strong>Signature:</strong> logger:Logger -&gt; path:string -&gt; message:string -&gt; unit<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L62-62" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '55', 55)" onmouseover="showTip(event, '55', 55)">
+            verbosee logger path exn message
+          </code>
+          <div class="tip" id="55">
+            <strong>Signature:</strong> logger:Logger -&gt; path:string -&gt; exn:exn -&gt; message:string -&gt; unit<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L64-64" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '56', 56)" onmouseover="showTip(event, '56', 56)">
+            verboseef logger path exn fFormat
+          </code>
+          <div class="tip" id="56">
+            <strong>Signature:</strong> logger:Logger -&gt; path:string -&gt; exn:exn -&gt; fFormat:((&#39;?8025 -&gt; &#39;?8026) -&gt; &#39;?8027) -&gt; &#39;?8027<br />
+                          <strong>Type parameters:</strong> '?8025, '?8026, '?8027          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L65-65" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '57', 57)" onmouseover="showTip(event, '57', 57)">
+            verbosef logger path fFormat
+          </code>
+          <div class="tip" id="57">
+            <strong>Signature:</strong> logger:Logger -&gt; path:string -&gt; fFormat:((&#39;?8020 -&gt; &#39;?8021) -&gt; &#39;?8022) -&gt; &#39;?8022<br />
+                          <strong>Type parameters:</strong> '?8020, '?8021, '?8022          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L63-63" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '58', 58)" onmouseover="showTip(event, '58', 58)">
+            warn logger path message
+          </code>
+          <div class="tip" id="58">
+            <strong>Signature:</strong> logger:Logger -&gt; path:string -&gt; message:string -&gt; unit<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L82-82" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '59', 59)" onmouseover="showTip(event, '59', 59)">
+            warne logger path exn message
+          </code>
+          <div class="tip" id="59">
+            <strong>Signature:</strong> logger:Logger -&gt; path:string -&gt; exn:exn -&gt; message:string -&gt; unit<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L84-84" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '60', 60)" onmouseover="showTip(event, '60', 60)">
+            warnef logger path exn fFormat
+          </code>
+          <div class="tip" id="60">
+            <strong>Signature:</strong> logger:Logger -&gt; path:string -&gt; exn:exn -&gt; fFormat:((&#39;?8065 -&gt; &#39;?8066) -&gt; &#39;?8067) -&gt; &#39;?8067<br />
+                          <strong>Type parameters:</strong> '?8065, '?8066, '?8067          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L85-85" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '61', 61)" onmouseover="showTip(event, '61', 61)">
+            warnf logger path fFormat
+          </code>
+          <div class="tip" id="61">
+            <strong>Signature:</strong> logger:Logger -&gt; path:string -&gt; fFormat:((&#39;?8060 -&gt; &#39;?8061) -&gt; &#39;?8062) -&gt; &#39;?8062<br />
+                          <strong>Type parameters:</strong> '?8060, '?8061, '?8062          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/vasyl-purchel/FsKafka/tree/master/src/FsKafka/Logging.fs#L83-83" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+        </div>
+        <div class="span3">
+          <img src="/FsKafka/img/logo.png" alt="F# Project" style="width:150px;margin:10px" />
+          <ul class="nav nav-list" id="menu" style="margin-top: 20px;">
+            <li class="nav-header">FsKafka</li>
+            <li><a href="/FsKafka/index.html">Home page</a></li>
+            <li class="divider"></li>
+            <li><a href="http://nuget.org/packages/FsKafka">Get Library via NuGet</a></li>
+            <li><a href="http://github.com/vasyl-purchel/FsKafka">Source Code on GitHub</a></li>
+            <li><a href="/FsKafka/license.html">License</a></li>
+            <li><a href="/FsKafka/release-notes.html">Release Notes</a></li>
+
+            <li class="nav-header">Getting started</li>
+            <li><a href="/FsKafka/tutorial.html">Sample tutorial</a></li>
+
+            <li class="nav-header">Documentation</li>
+            <li><a href="/FsKafka/reference/index.html">API Reference</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <a href="http://github.com/vasyl-purchel/FsKafka"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_gray_6d6d6d.png" alt="Fork me on GitHub"/></a>
+  </body>
+  </html>
