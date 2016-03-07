@@ -5,6 +5,7 @@
 [![Gitter](https://badges.gitter.im/vasyl-purchel/FsKafka.svg)](https://gitter.im/vasyl-purchel/FsKafka?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 F# client for [apache kafka][1]
+Documentation can be found [here][5]
 
 Places I'm looking to for ideas and to find how it should be done:
 
@@ -20,24 +21,25 @@ Or just run build.cmd or build.sh
 
 ```fsharp
 
-// producer:
-let endpoints = [ "192.168.99.100", 9091; "192.168.99.100", 9089]
-let connection = Connection.create { Connection.defaultConfig with MetadataBrokersList = endpoints }
+#r "FsKafka.dll"
+open FsKafka
+
+let brokenEndpoint   = "192.168.99.100", 9089
+let validEndpoint    = "192.168.99.100", 9092
+let endpoints        = [ brokenEndpoint; validEndpoint ]
+
+let connection       = Connection.create {
+    Connection.defaultConfig with
+      MetadataBrokersList = endpoints
+      ReconnectionAttempts = 3 }
+
 let metadataProvider = MetadataProvider.create MetadataProvider.defaultConfig connection
 
-let codec s = System.Text.Encoding.UTF8.GetBytes(s)
-let producer = Producer.start<string> (Producer.defaultConfig codec) connection metadataProvider
+let messageCodec s   = System.Text.Encoding.UTF8.GetBytes(s = s)
+let producerConfig   = { Producer.defaultConfig messageCodec with ProducerType = Producer.Sync }
+let syncProducer     = Producer.start<string> producerConfig connection metadataProvider
 
-let rec loop () =
-  System.Console.ReadLine()
-  |> function
-     | "quit" -> printfn "Finishing..."
-     | message ->
-         Producer.send producer "TestTopic" [||] message
-         loop()
-printfn "Type a message and press enter... (to exit enter 'quit')"
-
-loop()
+Producer.send syncProducer "hello" [||] "Test message"
 
 ```
 
@@ -92,3 +94,4 @@ batch and when we will send message we can get some messages lost.
 [2]: https://github.com/Jroland/kafka-net
 [3]: http://nessos.github.io/FsPickler/
 [4]: http://lambda-the-ultimate.org/node/2243
+[5]: http://vasyl-purchel.github.io/FsKafka/

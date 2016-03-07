@@ -32,14 +32,19 @@ let brokenEndpoint   = "192.168.99.100", 9089
 let validEndpoint    = "192.168.99.100", 9092
 let endpoints        = [ brokenEndpoint; validEndpoint ]
 
-let connection       = Connection.create { Connection.defaultConfig with MetadataBrokersList = endpoints; ReconnectionAttempts = 3 }
+let connection       = Connection.create {
+    Connection.defaultConfig with
+      MetadataBrokersList = endpoints
+      ReconnectionAttempts = 3 }
 
 let metadataProvider = MetadataProvider.create MetadataProvider.defaultConfig connection
 
 let messageCodec s   = System.Text.Encoding.UTF8.GetBytes(s = s)
 let producerConfig   = Producer.defaultConfig messageCodec
-let syncProducer     = Producer.start<string> { producerConfig with ProducerType = Producer.Sync  } connection metadataProvider
-let asyncProducer    = Producer.start<string> { producerConfig with ProducerType = Producer.Async } connection metadataProvider
+let syncProducer     = Producer.start<string> { producerConfig with ProducerType = Producer.Sync  }
+                                              connection metadataProvider
+let asyncProducer    = Producer.start<string> { producerConfig with ProducerType = Producer.Async }
+                                              connection metadataProvider
 
 Producer.send syncProducer "hello" [||] "Test message"
 Producer.send asyncProducer "test" [||] "Test message 2"
