@@ -57,24 +57,34 @@ While creating **Producer** I have used batching for all messages. Batching per
 broker may be better but leader may get changed after we put message into broker
 batch and when we will send message we can get some messages lost.
 
+## Done
+
+ * General encoding/decoding
+ * Logging (in general but not good in components)
+ * Protocol
+ * TcpSockets
+ * Connection
+ * MetadataProvider
+ * Produce and metadata messages
+ * SimpleSyncProducer
+ * SimpleAsyncProducer
+ 
+## Performance possible improvements
+
+ * SocketAsyncEventArgs pool
+ * Protocol as structs instead of records
+
 ## TODO
 
+ * Producer compression
+ * Producer split message if size is too big
+ * Higher level producer (with retries on errors from response)
  * write tests
- * make sure it still builds on linux and add CI config
  * make protocol types `internal`
  * throttle number of asynchronous requests to some limit
- * retry ProduceMessages if they failed
- * impement MessageCodec for topics + single messages (in producer)
  * notify if topic is not created and server configured to not create topic... (for now somehow I'm successfully send messages to topics that I didn't create separately...)
- * implement ProducerType.Sync (done partialy)
- * implement test service that would use producer
- * run test with 1 producer and console consumer to see that it works...
  * check how it works on errors like (a. leader change) (b. node down)
- * implement consumer
- * implement [error codes](https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-ErrorCodes)
- 
- ## Bugs
- 
+ * implement consumer 
  * no need for exceptions everywhere -> Result.Failure to have just message/exception...
  * reading response - we may succeed on reading size + correlationId but fail later, so we already should use this correlatorId for logging...
  

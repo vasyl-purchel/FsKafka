@@ -66,6 +66,7 @@
     <Compile Include="Codec.fs" />
     <Compile Include="Protocol.fs" />
     <Compile Include="Socket.fs" />
+    <Compile Include="SocketClient.fs" />
     <Compile Include="Connection.fs" />
     <Compile Include="MetadataProvider.fs" />
     <Compile Include="Producer.fs" />

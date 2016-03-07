@@ -21,6 +21,7 @@ module MetadataProvider =
 
   type TopicName   = TopicName of string
   type PartitionId = PartitionId of int
+  type Endpoint    = string * int
 
   exception BrokerHostMissingException  of unit
   exception BrokerPortMissingException  of unit
@@ -33,7 +34,7 @@ module MetadataProvider =
     let failWith e = fatale config.Log "FsKafka.MetadataProvider" e ""; raise e
     
     let locker = obj()
-    let metadata = new Dictionary<TopicName, Dictionary<PartitionId, Connection.Endpoint>>()
+    let metadata = new Dictionary<TopicName, Dictionary<PartitionId, Endpoint>>()
     
     let rec validateBrokers  acc = function
       | []    -> acc
@@ -56,20 +57,19 @@ module MetadataProvider =
 
     let updateBrokers brokers    =
       brokers
-      |> List.map (fun b -> {Connection.Endpoint.Host = b.Host; Connection.Endpoint.Port = b.Port})
+      |> List.map (fun b -> b.Host, b.Port)
       |> Set.ofList 
-      |> connection.UpdateBrokers
+      |> connection.UpdateBrokersList
 
     let updateMetadata nodeIdMapping newMetadata =
       metadata.Clear()
       newMetadata
       |> List.iter(fun topic ->
-          let partitions = new Dictionary<PartitionId, Connection.Endpoint>()
+          let partitions = new Dictionary<PartitionId, Endpoint>()
           topic.PartitionMetadata
           |> List.iter ( fun partition ->
               let broker = nodeIdMapping partition.Leader
-              let endpoint = { Connection.Endpoint.Host = broker.Host; Connection.Endpoint.Port = broker.Port }
-              partitions.Add(partition.PartitionId |> PartitionId, endpoint) )
+              partitions.Add(partition.PartitionId |> PartitionId, (broker.Host, broker.Port)) )
           metadata.Add(topic.TopicName |> TopicName, partitions) )
     
     let rec refreshMetadataLoop request attempt =

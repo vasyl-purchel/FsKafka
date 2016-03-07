@@ -3,6 +3,7 @@
 open FsKafka.Common
 open FsKafka.Protocol
 open FsKafka.Logging
+open System.Threading
 
 module Producer =
   type ProducerType                 = Sync | Async
@@ -15,7 +16,7 @@ module Producer =
     | Special x -> if x > 1s then x else sprintf "Wrong RequestRequiredAcks: Special(%A)" x |> failwith
   type Compression                  = None | GZip | Snappy
   type Codec<'T>                    = 'T -> byte[]
-  type Partitioner                  = (MetadataProvider.PartitionId * Connection.Endpoint) list -> string -> byte[] -> (MetadataProvider.PartitionId * Connection.Endpoint)
+  type Partitioner                  = (MetadataProvider.PartitionId * MetadataProvider.Endpoint) list -> string -> byte[] -> (MetadataProvider.PartitionId * MetadataProvider.Endpoint)
   type Message<'T>                  = { Value: 'T; Key: byte[]; Topic: string }
   type Config<'a>                   =
     { RequestRequiredAcks:            RequestRequiredAcks
@@ -43,23 +44,38 @@ module Producer =
       Partitioner                    = fun partitions topic key -> System.Linq.Enumerable.First(partitions)
       Compression                    = Compression.None (*not implemented*)
       CompressedTopics               = [] (*not implemented*)
-      MessageSendMaxRetries          = 3 (*not implemented*)
-      RetryBackoffMs                 = 100 (*not implemented*)
-      TopicMetadataRefreshIntervalMs = OnlyOnError (*not implemented*)
+      MessageSendMaxRetries          = 3
+      RetryBackoffMs                 = 100
+      TopicMetadataRefreshIntervalMs = OnlyOnError (*not implemented - for now happens only on errors*)
       BatchBufferingMaxMs            = 5000
       BatchNumberMessages            = 10000
       SendBufferBytes                = 100 * 1024 (*not implemented*)
       Log                            = defaultLogger Verbose }
   
-  type T<'a>(config:Config<'a>, connection:Connection.T, metadata:MetadataProvider.T, ?errorHandler:exn -> unit) =
+  type T<'a>(config:Config<'a>, connection:Connection.T, metadata:MetadataProvider.T, ?errorHandler:exn -> unit, ?responseHandler:ResponseMessage -> unit) =
     let verbosef f = verbosef config.Log "FsKafka.Producer" f
     let verbosee   = verbosee config.Log "FsKafka.Producer"
 
     let defaultErrorHandler (exn:exn) : unit =
       verbosee exn "Some fatal exception happened"
       exit(1)
+      
+    let defaultResponseMessageHandler (message:ResponseMessage) : unit =
+      match message.ResponseMessage with
+      | ProduceResponse response ->
+          response
+          |> List.iter(fun i ->
+              i.TopicPayload
+              |> List.iter(fun tp ->
+                  if tp.ErrorCode <> 0s then
+                    verbosef (fun f -> f "Produce messages for topic:%s, partition:%i failed with %i" i.TopicName tp.Partition tp.ErrorCode) ) )
+      | _ -> ()
 
     let errorEvent = new Event<exn>()
+    let handleResponse =
+      match responseHandler with
+      | Some handler -> handler
+      | Option.None  -> defaultResponseMessageHandler
 
     let batchAgent = BatchAgent<Message<'a>>(config.BatchNumberMessages, config.BatchBufferingMaxMs)
     
@@ -88,40 +104,39 @@ module Producer =
       |> Request.produce config.ClientId (config.RequestRequiredAcks |> acksToInt16) config.RequestTimeoutMs
 
     let rec writeBatchToBroker attempt (endpoint, batch:(_ * int * Message<'a>) seq) = async {
+      let (host, port) = endpoint
       let request = produceRequest batch
       let! writeResult = connection.SendAsync(endpoint, request, readResponse)
       match writeResult with
-      | Success r -> verbosef (fun f -> f "Batch sent to Host=%s, Port=%i, BatchSize=%i, Response=%A" endpoint.Host endpoint.Port (batch |> Seq.length) r)
-      | Failure e ->
-          verbosee e (sprintf "Batch failed on Host=%s, Port=%i, BatchSize=%i" endpoint.Host endpoint.Port (batch |> Seq.length))
-          match e with
-          | :? Connection.FailedAddingRequestException -> () (*safe to retry*)
-          | :? Connection.RequestTimedOutException     -> () (*safe to retry after metadata refresh*)
-          | :? Common.PassageDeclinedException         -> () (*safe to retry after metadata refresh*)
-          | :? Socket.SocketDisconnectedException      -> () (*may happen on read, so it was sent but might not acknowledged*)
-          | e                                          -> () (*not so safe as it might be sent...*)
-          (*write result failed*)
-          (*response await failed*)
-          (*response contains errorCodes...*) }
-      (* Retry logic:
-           - log failed attempt
-           - wait RetryBackoffMs
-           - refresh metadata
-           - if attempt < conf.MessageSendMaxRetries then
-               - regroup batch if needed
-               - retry it with (attempt+1)
-             else log max fail attempts reached *)
+      | Success result ->
+          verbosef (fun f -> f "Batch sent to Host=%s, Port=%i, BatchSize=%i, Response=%A" host port (batch |> Seq.length) result)
+          match result with
+          | Some response -> handleResponse response
+          | _             -> ()
+      | Failure error  ->
+          verbosee error (sprintf "Batch failed on Host=%s, Port=%i, BatchSize=%i" host port (batch |> Seq.length))
+          if attempt > config.MessageSendMaxRetries then
+            verbosef (fun f -> f "Reached max send retries for %A:%A" endpoint (batch |> List.ofSeq))
+          else
+            metadata.RefreshMetadata []
+            do! Async.Sleep config.RetryBackoffMs
+            return! writeBatchToBroker (attempt + 1) (endpoint, batch) }
              
     let rec syncWriteBatchToBroker attempt (endpoint, batch:(_ * int * Message<'a>) seq) =
+      let (host, port) = endpoint
       let request = produceRequest batch
       let writeResult = connection.Send(endpoint, request, readResponse)
       match writeResult with
-      | Success r -> verbosef (fun f -> f "Batch sent to Host=%s, Port=%i, BatchSize=%i, Response=%A" endpoint.Host endpoint.Port (batch |> Seq.length) r)
+      | Success r ->
+          verbosef (fun f -> f "Batch sent to Host=%s, Port=%i, BatchSize=%i, Response=%A" host port (batch |> Seq.length) r)
       | Failure e ->
-          verbosee e (sprintf "Batch failed on Host=%s, Port=%i, BatchSize=%i" endpoint.Host endpoint.Port (batch |> Seq.length))
-          match e with
-          | :? Connection.FailedAddingRequestException -> ()
-          | _ -> ()
+          verbosee e (sprintf "Batch failed on Host=%s, Port=%i, BatchSize=%i" host port (batch |> Seq.length))
+          if attempt > config.MessageSendMaxRetries then
+            verbosef (fun f -> f "Reached max send retries for %A:%A" endpoint (batch |> List.ofSeq))
+          else
+            metadata.RefreshMetadata []
+            Thread.Sleep config.RetryBackoffMs
+            syncWriteBatchToBroker (attempt + 1) (endpoint, batch)
 
     let addBrokerData message =
       try

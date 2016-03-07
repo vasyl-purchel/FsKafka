@@ -7,6 +7,10 @@
 FsKafka
 ======================
 
+[![Build Status](https://travis-ci.org/vasyl-purchel/FsKafka.svg?branch=master)](https://travis-ci.org/vasyl-purchel/FsKafka)
+[![Build status](https://ci.appveyor.com/api/projects/status/0tvs4krihppac8fj?svg=true)](https://ci.appveyor.com/project/VasylPurchel/fskafka)
+[![Gitter](https://badges.gitter.im/vasyl-purchel/FsKafka.svg)](https://gitter.im/vasyl-purchel/FsKafka?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+
 F# native client for [apache kafka](http://kafka.apache.org/)
 
 Installation
@@ -20,26 +24,25 @@ Producer example
 -------
 
 *)
+
 #r "FsKafka.dll"
 open FsKafka
 
-let endpoints = [ "192.168.99.100", 9092 ]
-let connection = Connection.create { Connection.defaultConfig with MetadataBrokersList = endpoints }
+let brokenEndpoint   = "192.168.99.100", 9089
+let validEndpoint    = "192.168.99.100", 9092
+let endpoints        = [ brokenEndpoint; validEndpoint ]
+
+let connection       = Connection.create { Connection.defaultConfig with MetadataBrokersList = endpoints; ReconnectionAttempts = 3 }
+
 let metadataProvider = MetadataProvider.create MetadataProvider.defaultConfig connection
-let messageCodec (s:string) = System.Text.Encoding.UTF8.GetBytes(s)
-let producer = Producer.start<string> {Producer.defaultConfig messageCodec with ProducerType = Producer.Async} connection metadataProvider
-Producer.send producer "hello" [||] "Test message"
 
-let rec loop () =
-  let line = System.Console.ReadLine()
-  match line with
-  | "quit" -> ()
-  | msg    ->
-      Producer.send producer "test" [||] "Test message"
-      printfn ">> Sent %s" msg
-      loop ()
-loop ()
+let messageCodec s   = System.Text.Encoding.UTF8.GetBytes(s = s)
+let producerConfig   = Producer.defaultConfig messageCodec
+let syncProducer     = Producer.start<string> { producerConfig with ProducerType = Producer.Sync  } connection metadataProvider
+let asyncProducer    = Producer.start<string> { producerConfig with ProducerType = Producer.Async } connection metadataProvider
 
+Producer.send syncProducer "hello" [||] "Test message"
+Producer.send asyncProducer "test" [||] "Test message 2"
 
 (**
 Some more info

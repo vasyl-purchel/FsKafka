@@ -64,7 +64,12 @@ module Common =
       match result with
       | Success v -> return! f v
       | Failure e -> return Failure e }
-  
+    let map f v = async {
+      let! result = v
+      match result with
+      | Success v -> return f v |> Success
+      | Failure e -> return Failure e }
+
     type AsyncResultBuilder () =
       member x.Return  v      = mreturn v
       member x.Bind    (v, f) = bind f v
@@ -188,10 +193,10 @@ module Compression =
   let private decompress f data = apply f CompressionMode.Decompress data
 
   let gzipCompress =
-    compress   (fun (x:MemoryStream) (y:CompressionMode) (z:bool) -> new GZipStream(stream = x, mode = y, leaveOpen = z) :> Stream)
+    compress   (fun x y z -> new GZipStream(x, mode = y, leaveOpen = z) :> Stream)
   
   let gzipDecompress =
-    decompress (fun (x:MemoryStream) (y:CompressionMode) (z:bool) -> new GZipStream(stream = x, mode = y, leaveOpen = z) :> Stream)
+    decompress (fun x y z -> new GZipStream(stream = x, mode = y, leaveOpen = z) :> Stream)
 
   let snappyCompress =
     compress   (fun x y z -> new SnappyStream(stream = x, mode = y, leaveOpen = z) :> Stream)

@@ -108,7 +108,7 @@ module Unpickle =
       | 0 -> match state with
              | Success(l, s) -> Success(l |> List.rev, s)
              | Failure err   -> Failure err
-      | c -> f (count - 1) g (g state)
+      | c -> f (c - 1) g (g state)
     let g u state =
       match state with
       | Success(list, stream) ->
