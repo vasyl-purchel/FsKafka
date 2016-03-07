@@ -15,6 +15,10 @@ module Producer =
     | All       -> -1s
     | Special x -> if x > 1s then x else sprintf "Wrong RequestRequiredAcks: Special(%A)" x |> failwith
   type Compression                  = None | GZip | Snappy
+  let compressionToMessageCodec = function
+    | None   -> MessageCodec.None
+    | GZip   -> MessageCodec.GZIP
+    | Snappy -> MessageCodec.Snappy
   type Codec<'T>                    = 'T -> byte[]
   type Partitioner                  = (MetadataProvider.PartitionId * MetadataProvider.Endpoint) list -> string -> byte[] -> (MetadataProvider.PartitionId * MetadataProvider.Endpoint)
   type Message<'T>                  = { Value: 'T; Key: byte[]; Topic: string }
@@ -42,20 +46,20 @@ module Producer =
       ProducerType                   = Sync
       Codec                          = codec
       Partitioner                    = fun partitions topic key -> System.Linq.Enumerable.First(partitions)
-      Compression                    = Compression.None (*not implemented*)
-      CompressedTopics               = [] (*not implemented*)
+      Compression                    = Compression.None
+      CompressedTopics               = []
       MessageSendMaxRetries          = 3
       RetryBackoffMs                 = 100
-      TopicMetadataRefreshIntervalMs = OnlyOnError (*not implemented - for now happens only on errors*)
+      TopicMetadataRefreshIntervalMs = OnlyOnError
       BatchBufferingMaxMs            = 5000
       BatchNumberMessages            = 10000
-      SendBufferBytes                = 100 * 1024 (*not implemented*)
+      SendBufferBytes                = 100 * 1024 (* implemented in Connection.T by failing if message is too big *)
       Log                            = defaultLogger Verbose }
   
   type T<'a>(config:Config<'a>, connection:Connection.T, metadata:MetadataProvider.T, ?errorHandler:exn -> unit, ?responseHandler:ResponseMessage -> unit) =
     let verbosef f = verbosef config.Log "FsKafka.Producer" f
     let verbosee   = verbosee config.Log "FsKafka.Producer"
-
+    
     let defaultErrorHandler (exn:exn) : unit =
       verbosee exn "Some fatal exception happened"
       exit(1)
@@ -76,21 +80,26 @@ module Producer =
       match responseHandler with
       | Some handler -> handler
       | Option.None  -> defaultResponseMessageHandler
-
+      
     let batchAgent = BatchAgent<Message<'a>>(config.BatchNumberMessages, config.BatchBufferingMaxMs)
     
-    let toMessageSet (partition, messages) =
-      let messages =
+    let toMessageSet topic (partition, messages) =
+      let messageSet =
         messages
         |> Seq.map(fun (_,_,m) -> m.Key, m.Value |> config.Codec)
         |> List.ofSeq
-      partition, FsKafka.Protocol.Request.mkMessageSet FsKafka.Protocol.MessageCodec.None messages
+        |> Request.mkMessageSet MessageCodec.None
+      let compression =
+        if config.CompressedTopics |> List.exists((=) topic)
+        then config.Compression |> compressionToMessageCodec
+        else MessageCodec.None
+      partition, Request.compress compression messageSet
 
     let toTopicPayload (topic, messages) =
       let payload =
         messages
         |> Seq.groupBy (fun (_,p,_) -> p)
-        |> Seq.map toMessageSet
+        |> Seq.map (toMessageSet topic)
         |> List.ofSeq
       topic, payload
 
@@ -129,6 +138,9 @@ module Producer =
       match writeResult with
       | Success r ->
           verbosef (fun f -> f "Batch sent to Host=%s, Port=%i, BatchSize=%i, Response=%A" host port (batch |> Seq.length) r)
+          match r with
+          | Some response -> handleResponse response
+          | _             -> ()
       | Failure e ->
           verbosee e (sprintf "Batch failed on Host=%s, Port=%i, BatchSize=%i" host port (batch |> Seq.length))
           if attempt > config.MessageSendMaxRetries then
@@ -169,22 +181,42 @@ module Producer =
         |> Seq.groupBy (fun (endpoint, _, _) -> endpoint)
         |> Seq.iter (syncWriteBatchToBroker 0)
 
+    let refreshMetadataIfRequired () =
+      match config.TopicMetadataRefreshIntervalMs with
+      | TopicMetadataRefreshInterval.AfterEveryMessage -> metadata.RefreshMetadata []
+      | _ -> ()
+      
+    let cancellationTokenSource = new CancellationTokenSource()
+    
+    let startRefreshMetadataSchedulerIfRequired () =
+      match config.TopicMetadataRefreshIntervalMs with
+      | TopicMetadataRefreshInterval.Scheduled timeout ->
+          let rec loop () = async {
+            do! Async.Sleep timeout
+            metadata.RefreshMetadata []
+            return! loop () }
+          Async.StartImmediate(loop (), cancellationTokenSource.Token)
+      | _ -> ()
+    
     do
       verbosef (fun f -> f "initializing producer")
       match errorHandler with
       | Some handler -> errorEvent.Publish.Add(handler)
       | Option.None  -> errorEvent.Publish.Add(defaultErrorHandler)
       batchAgent.BatchProduced.Add (writeBatch >> Async.Start)
-
+      startRefreshMetadataSchedulerIfRequired()
+      
     member x.Send(topic, key, message) =
       match config.ProducerType with
       | Async -> batchAgent.Enqueue { Topic = topic; Value = message; Key = key }
       | Sync  -> syncSend [ { Topic = topic; Value = message; Key = key } ]
+      refreshMetadataIfRequired()
 
     member x.Send(messages:Message<'a> list) =
       match config.ProducerType with
       | Async -> messages |> List.iter batchAgent.Enqueue
       | Sync  -> messages |> syncSend
+      refreshMetadataIfRequired()
 
   let start<'a> (config:Config<'a>) connection metadataProvider = T<'a>(config, connection, metadataProvider)
 

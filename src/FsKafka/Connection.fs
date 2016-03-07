@@ -17,18 +17,21 @@ type Config =
     Log                   : Logger
     RequestTimeoutMs      : int (* this is not the same as in Producer.Config, as this should be bigger then that value to include time of receiving failed response also, so 2 or 3 times bigger is good *)
     ReconnectionAttempts  : int
-    ReconnectionBackoffMs : int }
+    ReconnectionBackoffMs : int
+    SendBufferBytes       : int }
 let defaultConfig =
   { MetadataBrokersList   = []
     Log                   = defaultLogger LogLevel.Verbose
     RequestTimeoutMs      = 20000
     ReconnectionAttempts  = 5
-    ReconnectionBackoffMs = 500 }
+    ReconnectionBackoffMs = 500
+    SendBufferBytes       = 100 * 1024 }
   
 exception FailedAddingRequestException      of unit
 exception RequestTimedOutException          of unit
 exception SetRequestResponseFailedException of int
 exception RemoveAsyncRequestFailedException of int
+exception MessageToBigException             of string
 
 type RequestsPool(logger:Logger) =
   let verboseef e f = verboseef logger "FsKafka.RequestsPool" e f
@@ -140,29 +143,31 @@ type T(config:Config, asyncSocket: unit -> IAsyncSocket, syncSocket: unit -> ISy
     let (host, port)   = endpoint
     let correlator     = requests.NextCorrelator()
     let encodedRequest = request |> Request.requestWithCorrelator correlator |> FsKafka.Protocol.Request.encode
+    if encodedRequest.Length > config.SendBufferBytes
+    then return sprintf "%A" request |> MessageToBigException |> Failure
+    else
+      let resultAwaiter =
+        if readResponse
+        then match requests.TryAdd(correlator, request, config.RequestTimeoutMs) with
+             | Success awaiter -> Success <| Some awaiter
+             | Failure error   -> Failure error
+        else Success <| None
 
-    let resultAwaiter =
-      if readResponse
-      then match requests.TryAdd(correlator, request, config.RequestTimeoutMs) with
-           | Success awaiter -> Success <| Some awaiter
-           | Failure error   -> Failure error
-      else Success <| None
-
-    match resultAwaiter with
-    | Success awaiter ->
-        let! writeResult = clientsPool.AsyncSend(endpoint, encodedRequest, readResponse)
-        match writeResult with
-        | Success _ ->
-            verbosef (fun f -> f "Request sent: correlator=%i, Message=%A" correlator request)
-            match awaiter with
-            | Some awaiter -> let! result = awaiter in return Some result |> Success
-            | None         -> return None |> Success
-        | Failure e ->
-            verbosee e (sprintf "Write correlator=%i failed to host=%s, port=%i" correlator host port)
-            return Failure e
-    | Failure error   ->
-        verbosee error (sprintf "Write correlator=%i failed to host=%s, port=%i" correlator host port)
-        return error |> Failure }
+      match resultAwaiter with
+      | Success awaiter ->
+          let! writeResult = clientsPool.AsyncSend(endpoint, encodedRequest, readResponse)
+          match writeResult with
+          | Success _ ->
+              verbosef (fun f -> f "Request sent: correlator=%i, Message=%A" correlator request)
+              match awaiter with
+              | Some awaiter -> let! result = awaiter in return Some result |> Success
+              | None         -> return None |> Success
+          | Failure e ->
+              verbosee e (sprintf "Write correlator=%i failed to host=%s, port=%i" correlator host port)
+              return Failure e
+      | Failure error   ->
+          verbosee error (sprintf "Write correlator=%i failed to host=%s, port=%i" correlator host port)
+          return error |> Failure }
         
   let send endpoint request readResponse = Result.result {
     let correlator  = requests.NextCorrelator()

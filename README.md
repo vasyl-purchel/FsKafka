@@ -5,6 +5,7 @@
 [![Gitter](https://badges.gitter.im/vasyl-purchel/FsKafka.svg)](https://gitter.im/vasyl-purchel/FsKafka?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 F# client for [apache kafka][1]
+
 Documentation can be found [here][5]
 
 Places I'm looking to for ideas and to find how it should be done:
@@ -70,6 +71,7 @@ batch and when we will send message we can get some messages lost.
  * Produce and metadata messages
  * SimpleSyncProducer
  * SimpleAsyncProducer
+ * GZip and Snappy producer compression
  
 ## Performance possible improvements
 
@@ -78,7 +80,6 @@ batch and when we will send message we can get some messages lost.
 
 ## TODO
 
- * Producer compression
  * Producer split message if size is too big
  * Higher level producer (with retries on errors from response)
  * write tests
@@ -89,6 +90,8 @@ batch and when we will send message we can get some messages lost.
  * implement consumer 
  * no need for exceptions everywhere -> Result.Failure to have just message/exception...
  * reading response - we may succeed on reading size + correlationId but fail later, so we already should use this correlatorId for logging...
+ * TopicMetadataRefreshIntervalMs implemented in few places and scheduler has cancellationTokenSource, but it is not cleaned at the end...
+ * Connection.RequestsPool, Connection.SocketClientsPool, Connection.T, Producer.T - need to implement IDisposable
  
 [1]: http://kafka.apache.org/
 [2]: https://github.com/Jroland/kafka-net

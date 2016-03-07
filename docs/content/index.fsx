@@ -40,14 +40,21 @@ let connection       = Connection.create {
 let metadataProvider = MetadataProvider.create MetadataProvider.defaultConfig connection
 
 let messageCodec s   = System.Text.Encoding.UTF8.GetBytes(s = s)
-let producerConfig   = Producer.defaultConfig messageCodec
+let producerConfig   =
+  { Producer.defaultConfig messageCodec with
+      Compression      = Producer.Compression.Snappy
+      CompressedTopics = ["test"] }
 let syncProducer     = Producer.start<string> { producerConfig with ProducerType = Producer.Sync  }
                                               connection metadataProvider
 let asyncProducer    = Producer.start<string> { producerConfig with ProducerType = Producer.Async }
                                               connection metadataProvider
 
 Producer.send syncProducer "hello" [||] "Test message"
-Producer.send asyncProducer "test" [||] "Test message 2"
+
+for i in 1..100 do
+  Producer.send asyncProducer "test" [||] (sprintf "Test message %i" i)
+Producer.send asyncProducer "hello" [||] "uncompressed message"
+Producer.send asyncProducer "hello" [||] "uncompressed message 2"
 
 (**
 Some more info

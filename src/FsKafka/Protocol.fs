@@ -283,7 +283,15 @@ module Protocol =
       pList pString r.TopicName
 
     let private encodeMessage (m:Message) =
-      let messageDataPickler (m:Message) = (pInt8 m.MagicByte) >> (pInt8 (m.Attributes |> int8)) >> (pBytes m.Key) >> (pBytes m.Value)
+      let messageDataPickler (m:Message) =
+        let messageValue =
+          match m.Attributes with
+          | MessageCodec.None   -> m.Value
+          | MessageCodec.GZIP   -> Compression.gzipCompress m.Value
+          | MessageCodec.Snappy -> Compression.snappyCompress m.Value
+          | c                   -> sprintf "Unsupported compression %A" c |> failwith
+        (pInt8 m.MagicByte) >> (pInt8 (m.Attributes |> int8)) >> (pBytes m.Key) >> (pBytes messageValue)
+        
       let messageData = encode messageDataPickler m
       let crc = Crc32.calculate messageData |> int32
       (pInt32 crc) >> (pUnit messageData)
@@ -295,27 +303,8 @@ module Protocol =
       let f v s = List.fold(fun s e -> encodeMessageSetEntry e s) s v
       f v
 
-    let private compress (codec:MessageCodec) (s:MessageSet) =
-      let wrap compression =
-        let message =
-          { Crc         = encodeTimeCreation
-            MagicByte   = messageVersion
-            Attributes  = codec
-            Key         = [||]
-            Value       = s |> encode encodeMessageSet |> compression }
-        [ { Offset      = 0L
-            MessageSize = encodeTimeCreation
-            Message     = message } ]
-        |> fun s -> (pInt32 1) >> (encodeMessageSet s)
-      match codec with
-      | MessageCodec.None   -> (pInt32 s.Length) >> (encodeMessageSet s)
-      | MessageCodec.GZIP   -> wrap Compression.gzipCompress
-      | MessageCodec.Snappy -> wrap Compression.snappyCompress
-      | c                   -> sprintf "Unsupported compression %A" c |> failwith
-
     let private encodeProduceTopicPayload (p:ProduceTopicPayload) =
-      let codec = p.MessageSet.[0].Message.Attributes
-      (pInt32 p.Partition) >> (compress codec p.MessageSet)
+      (pInt32 p.Partition) >> (pInt32 p.MessageSet.Length) >> (encodeMessageSet p.MessageSet)
 
     let private encodeProduceRequestPayload (p:ProduceRequestPayload) =
       (pString p.TopicName) >> (pList encodeProduceTopicPayload p.TopicPayload)
@@ -333,6 +322,23 @@ module Protocol =
 
     let private encodeRequest r =
       (pInt16 r.ApiKey) >> (pInt16 r.ApiVersion) >> (pInt32 r.CorrelationId) >> (pString r.ClientId) >> (encodeRequestMessage r.RequestMessage)
+
+    let compress (codec:MessageCodec) (s:MessageSet) =
+      let wrap () : MessageSet =
+        let message =
+          { Crc         = encodeTimeCreation
+            MagicByte   = messageVersion
+            Attributes  = codec
+            Key         = [||]
+            Value       = s |> encode encodeMessageSet }
+        [ { Offset      = 0L
+            MessageSize = encodeTimeCreation
+            Message     = message } ]
+      match codec with
+      | MessageCodec.None   -> s
+      | MessageCodec.GZIP   -> wrap()
+      | MessageCodec.Snappy -> wrap()
+      | c                   -> sprintf "Unsupported compression %A" c |> failwith
 
     let encode message =
       match message.Message with
