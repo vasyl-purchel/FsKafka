@@ -3,6 +3,8 @@ module FsKafka.Connection
 
 open FsKafka.Common
 open FsKafka.Protocol
+open FsKafka.Protocol.Requests
+open FsKafka.Protocol.Responses
 open FsKafka.Logging
 open FsKafka.Socket
 open FsKafka.SocketClient
@@ -112,8 +114,7 @@ type T(config:Config, asyncSocket: unit -> IAsyncSocket, syncSocket: unit -> ISy
   let handleResponse response = asyncResult {
     let! (_, correlator, data) = response
     let! (request, source)     = requests.TryRemove correlator
-    let! decode                = Response.decoderFor request.RequestMessage |> Result.toAsync
-    let! response              = decode correlator data |> Result.toAsync
+    let! response              = Optics.decode request.Message correlator data |> Result.toAsync
     match source.TrySetResult response with
     | true  -> return Success()
     | false -> return SetRequestResponseFailedException correlator |> Failure }
@@ -128,7 +129,7 @@ type T(config:Config, asyncSocket: unit -> IAsyncSocket, syncSocket: unit -> ISy
   
   let clientConfig =
     { Log                   = config.Log
-      Codec                 = Response.decodeInt
+      Codec                 = Optics.decodeInt
       ProcessResponseAsync  = processResponse
       Host                  = ""
       Port                  = 0
@@ -142,7 +143,7 @@ type T(config:Config, asyncSocket: unit -> IAsyncSocket, syncSocket: unit -> ISy
   let asyncSend endpoint request readResponse = async {
     let (host, port)   = endpoint
     let correlator     = requests.NextCorrelator()
-    let encodedRequest = request |> Request.requestWithCorrelator correlator |> FsKafka.Protocol.Request.encode
+    let encodedRequest = request |> Optics.withCorrelator correlator |> Optics.encode
     if encodedRequest.Length > config.SendBufferBytes
     then return sprintf "%A" request |> MessageToBigException |> Failure
     else
@@ -171,14 +172,12 @@ type T(config:Config, asyncSocket: unit -> IAsyncSocket, syncSocket: unit -> ISy
         
   let send endpoint request readResponse = Result.result {
     let correlator  = requests.NextCorrelator()
-    let encodedRequest = request |> Request.requestWithCorrelator correlator |> FsKafka.Protocol.Request.encode
+    let encodedRequest = request |> Optics.withCorrelator correlator |> Optics.encode
     let! response      = clientsPool.Send(endpoint, encodedRequest, readResponse)
     match response with
     | Some (_, correlator, data) ->
           verbosef (fun f -> f "Request sent: correlator=%i, Message=%A" correlator request)
-          let! decode                = Response.decoderFor request.RequestMessage
-          let! response              = decode correlator data
-          return response |> Some
+          return! Optics.decode request.Message correlator data |> Result.map Some
     | None -> return None }
   
   let trySend request broker =

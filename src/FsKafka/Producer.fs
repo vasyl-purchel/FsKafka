@@ -2,6 +2,9 @@
 // https://kafka.apache.org/08/configuration.html
 open FsKafka.Common
 open FsKafka.Protocol
+open FsKafka.Protocol.Common
+open FsKafka.Protocol.Requests
+open FsKafka.Protocol.Responses
 open FsKafka.Logging
 open System.Threading
 
@@ -65,14 +68,14 @@ module Producer =
       exit(1)
       
     let defaultResponseMessageHandler (message:ResponseMessage) : unit =
-      match message.ResponseMessage with
-      | ProduceResponse response ->
-          response
+      match message.Message with
+      | Produce response ->
+          response.Responses
           |> List.iter(fun i ->
-              i.TopicPayload
+              i.TopicData
               |> List.iter(fun tp ->
-                  if tp.ErrorCode <> 0s then
-                    verbosef (fun f -> f "Produce messages for topic:%s, partition:%i failed with %i" i.TopicName tp.Partition tp.ErrorCode) ) )
+                  if tp.ErrorCode <> Errors.NoError then
+                    verbosef (fun f -> f "Produce messages for topic:%s, partition:%i failed with %A" i.TopicName tp.Partition tp.ErrorCode) ) )
       | _ -> ()
 
     let errorEvent = new Event<exn>()
@@ -88,12 +91,12 @@ module Producer =
         messages
         |> Seq.map(fun (_,_,m) -> m.Key, m.Value |> config.Codec)
         |> List.ofSeq
-        |> Request.mkMessageSet MessageCodec.None
+        |> Optics.mkMessageSet MessageCodec.None
       let compression =
         if config.CompressedTopics |> List.exists((=) topic)
         then config.Compression |> compressionToMessageCodec
         else MessageCodec.None
-      partition, Request.compress compression messageSet
+      partition, Optics.encodeMessageSet compression messageSet
 
     let toTopicPayload (topic, messages) =
       let payload =
@@ -110,7 +113,7 @@ module Producer =
       |> Seq.groupBy(fun (_, _, m) -> m.Topic)
       |> Seq.map toTopicPayload
       |> List.ofSeq
-      |> Request.produce config.ClientId (config.RequestRequiredAcks |> acksToInt16) config.RequestTimeoutMs
+      |> Optics.produce config.ClientId (config.RequestRequiredAcks |> acksToInt16) config.RequestTimeoutMs
 
     let rec writeBatchToBroker attempt (endpoint, batch:(_ * int * Message<'a>) seq) = async {
       let (host, port) = endpoint
@@ -221,3 +224,9 @@ module Producer =
   let start<'a> (config:Config<'a>) connection metadataProvider = T<'a>(config, connection, metadataProvider)
 
   let send (producer:T<_>) topic key message = producer.Send(topic, key, message)
+
+(**
+Message should contain Partition also
+Add metrics
+Add support for v1 and v2 and versioning :)
+*)

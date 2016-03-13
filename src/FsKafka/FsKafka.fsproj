@@ -65,6 +65,7 @@
     <Compile Include="Logging.fs" />
     <Compile Include="Codec.fs" />
     <Compile Include="Protocol.fs" />
+    <Compile Include="Optics.fs" />
     <Compile Include="Socket.fs" />
     <Compile Include="SocketClient.fs" />
     <Compile Include="Connection.fs" />

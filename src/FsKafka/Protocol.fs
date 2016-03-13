@@ -1,455 +1,464 @@
-﻿namespace FsKafka
+﻿namespace FsKafka.Protocol
 
-module Protocol =
-  (* For protocol description please refer to https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol *)
+module Common =
+  (* For protocol description please refer to https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol
+     New protocol generated from code: http://kafka.apache.org/protocol.html *)
+  type Errors =
+    | Unknown                      = -1s // The server experienced an unexpected error when processing the request
+    | NoError                      =  0s // No errors
+    | OffsetOutOfRange             =  1s // The requested offset is not within the range of offsets maintained by the server.
+    | CorruptMessage               =  2s // The message contents does not match the message CRC or the message is otherwise corrupt.
+    | UnknownTopicOrPartition      =  3s // This server does not host this topic-partition.
+    | LeaderNotAvailable           =  5s // There is no leader for this topic-partition as we are in the middle of a leadership election.
+    | NotLeaderForPartition        =  6s // This server is not the leader for that topic-partition.
+    | RequestTimedOut              =  7s // The request timed out.
+    | BrokerNotAvailable           =  8s // The broker is not available.
+    | ReplicaNotAvailable          =  9s // The replica is not available for the requested topic-partition
+    | MessageTooLarge              = 10s // The request included a message larger than the max message size the server will accept.
+    | StaleControllerEpoch         = 11s // The controller moved to another broker.
+    | OffsetMetadataTooLarge       = 12s // The metadata field of the offset request was too large.
+    | NetworkException             = 13s // The server disconnected before a response was received.
+    | GroupLoadInProgress          = 14s // The coordinator is loading and hence can't process requests for this group.
+    | GroupCoordinatorNotAvailable = 15s // The group coordinator is not available.
+    | NotCoordinatorForGroup       = 16s // This is not the correct coordinator for this group.
+    | InvalidTopicException        = 17s // The request attempted to perform an operation on an invalid topic.
+    | RecordListTooLarge           = 18s // The request included message batch larger than the configured segment size on the server.
+    | NotEnoughReplicas            = 19s // Messages are rejected since there are fewer in-sync replicas than required.
+    | NotEnoughReplicasAfterAppend = 20s // Messages are written to the log, but to fewer in-sync replicas than required.
+    | InvalidRequiredAcks          = 21s // Produce request specified an invalid value for required acks.
+    | IllegalGeneration            = 22s // Specified group generation id is not valid.
+    | InconsistentGroupProtocol    = 23s // The group member's supported protocols are incompatible with those of existing members.
+    | InvalidGroupId               = 24s // The configured groupId is invalid
+    | UnknownMemberId              = 25s // The coordinator is not aware of this member.
+    | InvalidSessionTimeout        = 26s // The session timeout is not within an acceptable range.
+    | RebalanceInProgress          = 27s // The group is rebalancing, so a rejoin is needed.
+    | InvalidCommitOffsetSize      = 28s // The committing offset data size is not valid
+    | TopicAuthorizationFailed     = 29s // Topic authorization failed.
+    | GroupAuthorizationFailed     = 30s // Group authorization failed.
+    | ClusterAuthorizationFailed   = 31s // Cluster authorization failed.
   
-  type ErrorResponseCode =
-    | Unknown                             = -1
-    | NoError                             = 0
-    | OffsetOutOfRange                    = 1
-    | InvalidMessage                      = 2
-    | UnknownTopicOrPartition             = 3
-    | InvalidMessageSize                  = 4
-    | LeaderNotAvailable                  = 5
-    | NotLeaderForPartition               = 6
-    | RequestTimedOut                     = 7
-    | BrokerNotAvailable                  = 8
-    | ReplicaNotAvailable                 = 9
-    | MessageSizeTooLarge                 = 10
-    | StaleControllerEpochCode            = 11
-    | OffsetMetadataTooLargeCode          = 12
-    | StaleLeaderEpochCode                = 13
-    | OffsetsLoadInProgressCode           = 14
-    | ConsumerCoordinatorNotAvailableCode = 15
-    | NotCoordinatorForConsumerCode       = 16
+  let isRetriable = function
+    | Errors.Unknown                      -> false
+    | Errors.NoError                      -> false
+    | Errors.OffsetOutOfRange             -> false
+    | Errors.CorruptMessage               -> true
+    | Errors.UnknownTopicOrPartition      -> true
+    | Errors.LeaderNotAvailable           -> true
+    | Errors.NotLeaderForPartition        -> true
+    | Errors.RequestTimedOut              -> true
+    | Errors.BrokerNotAvailable           -> false
+    | Errors.ReplicaNotAvailable          -> false
+    | Errors.MessageTooLarge              -> false
+    | Errors.StaleControllerEpoch         -> false
+    | Errors.OffsetMetadataTooLarge       -> false
+    | Errors.NetworkException             -> true
+    | Errors.GroupLoadInProgress          -> true
+    | Errors.GroupCoordinatorNotAvailable -> true
+    | Errors.NotCoordinatorForGroup       -> true
+    | Errors.InvalidTopicException        -> false
+    | Errors.RecordListTooLarge           -> false
+    | Errors.NotEnoughReplicas            -> true
+    | Errors.NotEnoughReplicasAfterAppend -> true
+    | Errors.InvalidRequiredAcks          -> false
+    | Errors.IllegalGeneration            -> false
+    | Errors.InconsistentGroupProtocol    -> false
+    | Errors.InvalidGroupId               -> false
+    | Errors.UnknownMemberId              -> false
+    | Errors.InvalidSessionTimeout        -> false
+    | Errors.RebalanceInProgress          -> false
+    | Errors.InvalidCommitOffsetSize      -> false
+    | Errors.TopicAuthorizationFailed     -> false
+    | Errors.GroupAuthorizationFailed     -> false
+    | Errors.ClusterAuthorizationFailed   -> false
+    | _                                   -> false
+  
+  let toError = Microsoft.FSharp.Core.LanguagePrimitives.EnumOfValue<int16, Errors>
     
   type MessageCodec =
     | None   = 0x00
     | GZIP   = 0x01
     | Snappy = 0x02
-  type Message =
-    { Crc:                int32
-      MagicByte:          int8
-      Attributes:         MessageCodec
-      Key:                byte[]
-      Value:              byte[] }
-  type MessageSetEntry =
-    { Offset:             int64
-      MessageSize:        int32
-      Message:            Message }
-  type MessageSet = MessageSetEntry list
-
-  type MetadataRequest =
-    { TopicName:          string list }
-
-  type ProduceTopicPayload =
-    { Partition:          int32
-      MessageSetSize:     int32
-      MessageSet:         MessageSet }
-
-  type ProduceRequestPayload =
-    { TopicName:          string
-      TopicPayload:       ProduceTopicPayload list }
-
-  type ProduceRequest =
-    { RequiredAcks:       int16
-      Timeout:            int32
-      Payload:            ProduceRequestPayload list }
-
-  type FetchTopicPayload =
-    { Partition:          int32
-      FetchOffset:        int64
-      MaxBytes:           int32 }
-  type FetchRequestPayload =
-    { TopicName:          string
-      TopicPayload:       FetchTopicPayload }
-  type FetchRequest =
-    { ReplicaId:          int32
-      MaxWaitTime:        int32
-      MinBytes:           int32
-      Payload:            FetchRequestPayload }
-
-  type OffsetRequestTopicPayload =
-    { Partition:          int32
-      Time:               int64
-      MaxNumberOfOffsets: int32 }
-  type OffsetRequestTopic =
-    { TopicName:          string
-      TopicPayload:       OffsetRequestTopicPayload list }
-  type OffsetRequest =
-    { ReplicaId:          int32
-      Topics:             OffsetRequestTopic list }
-
-  type OffsetCommitRequestTopicPayload =
-    { Partition:          int32
-      Offset:             int64
-      Metadata:           string }
-  type OffsetCommitRequestPayload =
-    { TopicName:          string
-      Payload:            OffsetCommitRequestTopicPayload list }
-  type OffsetCommitRequest =
-    { ConsumerGroup:      string
-      Payload:            OffsetCommitRequestPayload list }
-
-  type OffsetFetchRequestTopic =
-    { TopicName:          string
-      Partitions:         int32 list }
-  type OffsetFetchRequest =
-    { ConsumerGroup:      string
-      Topics:             OffsetFetchRequestTopic list }
-
-  type Broker =
-    { NodeId:             int32
-      Host:               string
-      Port:               int32 }
-  type PartitionMetadata =
-    { PartitionErrorCode: int16
-      PartitionId:        int32
-      Leader:             int32
-      Replicas:           int32 list
-      Isr:                int32 list }
-  type TopicMetadata =
-    { TopicErrorCode:     int16
-      TopicName:          string
-      PartitionMetadata:  PartitionMetadata list }
-  type MetadataResponse =
-    { Broker:             Broker list
-      TopicMetadata:      TopicMetadata list }
-
-  type TopicProducedPayload =
-    { Partition:          int32
-      ErrorCode:          int16
-      Offset:             int64 }
-  type ProduceResponsePayload =
-    { TopicName:          string
-      TopicPayload:       TopicProducedPayload list }
-  type ProduceResponse = ProduceResponsePayload list
+    
+  open FsKafka.Pickle
   
-  type FetchResponseTopicPayload =
-    { Partition:          int32
-      ErrorCode:          int16
-      HighwaterMarkOffset:int64
-      MessageSetSize:     int32
-      MessageSet:         MessageSet }
-  type FetchResponsePayload =
-    { TopicName:          string
-      Payload:            FetchResponseTopicPayload list }
-  type FetchResponse = FetchResponsePayload list
+  exception UnsupportedCompressionException of MessageCodec
+  
+  let compress data = function
+    | MessageCodec.None   -> data
+    | MessageCodec.GZIP   -> FsKafka.Compression.gzipCompress data
+    | MessageCodec.Snappy -> FsKafka.Compression.snappyCompress data
+    | codec               -> raise <| UnsupportedCompressionException codec
+    
+  type Message =
+    { Crc        : int32
+      MagicByte  : int8
+      Attributes : MessageCodec
+      //Timestamp  : int64 - from kafka 0.10
+      Key        : byte[]
+      Value      : byte[] }
+    with static member Create(version, codec, key, value) =(* ?timestamp, ?timestampType *)
+           { Crc        = 0
+             MagicByte  = version
+             Attributes = codec
+             //Timestamp  = timestamp
+             Key        = key
+             Value      = value }
+         static member Pickler(m) =
+           let messageDataPickler m =
+             (pInt8   m.MagicByte) >>
+             (pInt8  (m.Attributes |> int8)) >>
+             (pBytes  m.Key) >>
+             (pBytes (compress m.Value m.Attributes))
+           let messageData = encode messageDataPickler m
+           let crc = FsKafka.Crc32.calculate messageData |> int32
+           (pInt32 crc) >> (pUnit messageData)
+           
+  type MessageSetItem =
+    { Offset      : int64
+      MessageSize : int32
+      Message     : Message }
+    with static member Create(message, ?offset) =
+           { Offset      = defaultArg offset 0L
+             MessageSize = 0
+             Message     = message }
+         static member Pickler(entry) =
+           (pInt64          entry.Offset) >>
+           (pInt32          entry.MessageSize) >>
+           (Message.Pickler entry.Message)
+           
+  type MessageSet =
+    { Data : MessageSetItem seq }
+    with static member Create(entries) =
+           { Data = entries}
+         static member Pickler(messageSet:MessageSet) =
+           fun s -> Seq.fold(fun s e -> (MessageSetItem.Pickler e) s) s messageSet.Data
+  
+module Requests =
+  open Common
+  open FsKafka.Pickle
 
-  type PartitionOffset =
-    { Partition:          int32
-      ErrorCode:          int16
-      Offsets:            int64 list }
-  type OffsetResponseTopic =
-    { TopicName:          string
-      PartitionOffsets:   PartitionOffset list }
-  type OffsetResponse = OffsetResponseTopic list
+  (* ========= Produce request ========= *)
+  type TopicPartitionData =
+    { Partition : int32
+      RecordSet : byte[] }
+    with static member Create(partition, recordSet) =
+           { Partition = partition
+             RecordSet = recordSet }
+         static member Pickler(r:TopicPartitionData) =
+           (pInt32 r.Partition) >>
+           (pBytes r.RecordSet)
+           
+  type TopicData =
+    { Topic : string
+      Data  : TopicPartitionData list }
+    with static member Create(topic, data) =
+           { Topic = topic
+             Data  = data }
+         static member Pickler(r:TopicData) =
+           (pString                          r.Topic) >>
+           (pList TopicPartitionData.Pickler r.Data)
+           
+  type ProduceRequest =
+    { RequiredAcks : int16
+      Timeout      : int32
+      TopicsData   : TopicData list }
+    with static member Create(acks, timeout, data) =
+           { RequiredAcks = acks
+             Timeout      = timeout
+             TopicsData   = data }
+         static member Pickler(r:ProduceRequest) =
+           (pInt16                  r.RequiredAcks) >>
+           (pInt32                  r.Timeout) >>
+           (pList TopicData.Pickler r.TopicsData)
+    
+  (* ========= Metadata request ========= *)
+  type MetadataRequest =
+    { Topics : string list }
+    with static member Create(topics) =
+           { Topics = topics }
+         static member Pickler(r:MetadataRequest) =
+           pList pString r.Topics
 
-  type OffsetCommitResponseTopicPayload =
-    { Partition:          int32
-      ErrorCode:          int16 }
-  type OffsetCommitResponseTopic =
-    { TopicName:          string
-      Payload:            OffsetCommitResponseTopicPayload list }
-  type OffsetCommitResponse = OffsetCommitResponseTopic list
-
-  type OffsetFetchResponseTopicPayload = {
-    Partition:          int32
-    Offset:             int64
-    Metadata:           string
-    ErrorCode:          int16 }
-  type OffsetFetchResponseTopic = {
-    TopicName:          string
-    Payload:            OffsetFetchResponseTopicPayload list }
-  type OffsetFetchResponse = OffsetFetchResponseTopic list
+  (* ========= GroupCoordinator request ========= *)
+  type GroupCoordinatorRequest =
+    { GroupId : string }
+    with static member Create(groupId) =
+           { GroupId = groupId }
+         static member Pickler(r:GroupCoordinatorRequest) =
+           pString r.GroupId
+  
+  (* ========= JoinGroup request ========= *)
+  type ProtocolMetadata =
+    { Version      : int16
+      Subscription : string list
+      UserData     : byte[] } // no idea where to use :)
+    with static member Create(version, subscription, data) =
+           { Version      = version
+             Subscription = subscription
+             UserData     = data }
+         static member Pickler(r:ProtocolMetadata) =
+           (pInt16        r.Version) >>
+           (pList pString r.Subscription) >>
+           (pBytes        r.UserData)
+           
+  type GroupProtocol =
+    { ProtocolName     : string
+      ProtocolMetadata : byte[] }
+    with static member Create(name, data) =
+           { ProtocolName     = name
+             ProtocolMetadata = data }
+         static member Pickler(r:GroupProtocol) =
+           (pString r.ProtocolName) >>
+           (pBytes  r.ProtocolMetadata)
+           
+  type JoinGroupRequest =
+    { GroupId        : string
+      SessionTimeout : int32
+      MemberId       : string
+      ProtocolType   : string
+      GroupProtocols : GroupProtocol list }
+    with static member Create(groupId, timeout, memberId, protocol, protocols) =
+           { GroupId        = groupId
+             SessionTimeout = timeout
+             MemberId       = memberId
+             ProtocolType   = protocol
+             GroupProtocols = protocols }
+         static member Pickler(r:JoinGroupRequest) =
+           (pString                     r.GroupId) >>
+           (pInt32                      r.SessionTimeout) >>
+           (pString                     r.MemberId) >>
+           (pString                     r.ProtocolType) >>
+           (pList GroupProtocol.Pickler r.GroupProtocols)
 
   type RequestType =
-    | MetadataRequest     of MetadataRequest
-    | ProduceRequest      of ProduceRequest
-    | FetchRequest        of FetchRequest
-    | OffsetRequest       of OffsetRequest
-    | OffsetCommitRequest of OffsetCommitRequest
-    | OffsetFetchRequest  of OffsetFetchRequest
-  
-  type ResponseType =
-    | MetadataResponse     of MetadataResponse
-    | ProduceResponse      of ProduceResponse
-    | FetchResponse        of FetchResponse
-    | OffsetResponse       of OffsetResponse
-    | OffsetCommitResponse of OffsetCommitResponse
-    | OffsetFetchResponse  of OffsetFetchResponse
-
+    | Produce            of ProduceRequest // v0, v1 - from 0.9.0, v2 - from 0.10.0
+    //| Fetch              of FetchRequest
+    //| Offsets            of OffsetsRequest
+    | Metadata           of MetadataRequest
+    //| LeaderAndIsr       of LeaderAndIsrRequest
+    //| StopReplica        of StopReplicaRequest
+    //| UpdateMetadata     of UpdateMetadataRequest
+    //| ControlledShutdown of ControlledShutdownRequest
+    //| OffsetCommit       of OffsetCommitRequest
+    //| OffsetFetch        of OffsetFetchRequest
+    | GroupCoordinator   of GroupCoordinatorRequest
+    | JoinGroup          of JoinGroupRequest
+    //| Heartbeat          of HeartbeatRequest
+    //| LeaveGroup         of LeaveGroupRequest
+    //| SyncGroup          of SyncGroupRequest
+    //| DescribeGroups     of DescribeGroupsRequest
+    //| ListGroups         of ListGroupsRequest
+    
+  let toPickler = function
+    | Produce            r -> ProduceRequest.Pickler r
+    //| Fetch              r -> FetchRequest.Pickler r
+    //| Offsets            r -> OffsetsRequest.Pickler r
+    | Metadata           r -> MetadataRequest.Pickler r
+    //| LeaderAndIsr       r -> LeaderAndIsrRequest.Pickler r
+    //| StopReplica        r -> StopReplicaRequest.Pickler r
+    //| UpdateMetadata     r -> UpdateMetadataRequest.Pickler r
+    //| ControlledShutdown r -> ControlledShutdownRequest.Pickler r
+    //| OffsetCommit       r -> OffsetCommitRequest.Pickler r
+    //| OffsetFetch        r -> OffsetFetchRequest.Pickler r
+    | GroupCoordinator   r -> GroupCoordinatorRequest.Pickler r
+    | JoinGroup          r -> JoinGroupRequest.Pickler r
+    //| Heartbeat          r -> HeartbeatRequest.Pickler r
+    //| LeaveGroup         r -> LeaveGroupRequest.Pickler r
+    //| SyncGroup          r -> SyncGroupRequest.Pickler r
+    //| DescribeGroups     r -> DescribeGroupsRequest.Pickler r
+    //| ListGroups         r -> ListGroupsRequest.Pickler r
+    
+  let toApiKey = function
+    | Produce            _ ->  0s
+    //| Fetch              _ ->  1s
+    //| Offsets            _ ->  2s
+    | Metadata           _ ->  3s
+    //| LeaderAndIsr       _ ->  4s
+    //| StopReplica        _ ->  5s
+    //| UpdateMetadata     _ ->  6s
+    //| ControlledShutdown _ ->  7s
+    //| OffsetCommit       _ ->  8s
+    //| OffsetFetch        _ ->  9s
+    | GroupCoordinator   _ -> 10s
+    | JoinGroup          _ -> 11s
+    //| Heartbeat          _ -> 12s
+    //| LeaveGroup         _ -> 13s
+    //| SyncGroup          _ -> 14s
+    //| DescribeGroups     _ -> 15s
+    //| ListGroups         _ -> 16s
+    
   type RequestMessage =
-    { ApiKey:             int16
-      ApiVersion:         int16
-      CorrelationId:      int32
-      ClientId:           string
-      RequestMessage:     RequestType }
+    { ApiKey        : int16
+      ApiVersion    : int16
+      CorrelationId : int32
+      ClientId      : string
+      Message       : RequestType }
+    with static member Create(apiKey, apiVersion, correlationId, clientId, message) =
+           { ApiKey        = apiKey
+             ApiVersion    = apiVersion
+             CorrelationId = correlationId
+             ClientId      = clientId
+             Message       = message }
+         static member Pickler(r:RequestMessage) =
+           ( pInt16    r.ApiKey ) >>
+           ( pInt16    r.ApiVersion ) >>
+           ( pInt32    r.CorrelationId ) >>
+           ( pString   r.ClientId ) >>
+           ( toPickler r.Message )
+    
+module Responses =
+  open Common
+  open FsKafka.Common
+  open FsKafka.Unpickle
 
+  (* ========= Produce response ========= *)
+  type TopicData =
+    { Partition : int32
+      ErrorCode : Errors
+      Offset    : int64
+      (*Timestamp : int64 // v2*) }
+    with static member Unpickler(stream) = unpickle {
+           let! (partition, stream) = upInt32 stream
+           let! (errorCode, stream) = upInt16 stream
+           let! (offset,    stream) = upInt64 stream
+           //let! (timestamp, stream) = upInt64 stream
+           return { Partition = partition
+                    ErrorCode = errorCode |> toError
+                    Offset    = offset
+                    (*Timestamp = timestamp*) }, stream }
+                    
+  type ProduceResponseItem =
+    { TopicName : string
+      TopicData : TopicData list }
+    with static member Unpickler(stream) = unpickle {
+           let! (name,     stream) = upString                   stream
+           let! (payloads, stream) = upList TopicData.Unpickler stream
+           return { TopicName = name
+                    TopicData = payloads }, stream }
+                    
+  type ProduceResponse =
+    { Responses    : ProduceResponseItem list
+      ThrottleTime : int32 (* v1 && v2 *) }
+    with static member Unpickler(stream) = unpickle {
+           let! (responses,    stream) = upList ProduceResponseItem.Unpickler stream
+           let! (throttleTime, stream) = upInt32                              stream
+           return { Responses    = responses
+                    ThrottleTime = throttleTime }, stream }
+       
+  (* ========= Metadata response ========= *)
+  type Broker =
+    { NodeId : int32
+      Host   : string
+      Port   : int32 }
+    with static member Unpickler(stream) = unpickle {
+           let! (nodeId, stream) = upInt32  stream
+           let! (host,   stream) = upString stream
+           let! (port,   stream) = upInt32  stream
+           return { NodeId = nodeId
+                    Host   = host
+                    Port   = port }, stream }
+                    
+  type PartitionMetadata =
+    { ErrorCode   : Errors
+      PartitionId : int32
+      Leader      : int32
+      Replicas    : int32 list
+      Isr         : int32 list }
+    with static member Unpickler(stream) = unpickle {
+           let! (errorCode,   stream) = upInt16        stream
+           let! (partitionId, stream) = upInt32        stream
+           let! (leader,      stream) = upInt32        stream
+           let! (replicas,    stream) = upList upInt32 stream
+           let! (isr,         stream) = upList upInt32 stream
+           return { ErrorCode   = errorCode |> toError
+                    PartitionId = partitionId
+                    Leader      = leader
+                    Replicas    = replicas
+                    Isr         = isr }, stream }
+                    
+  type TopicMetadata =
+    { ErrorCode          : Errors
+      Topic              : string
+      PartitionsMetadata : PartitionMetadata list }
+    with static member Unpickler(stream) = unpickle {
+           let! (errorCode,  stream) = upInt16                            stream
+           let! (name,       stream) = upString                           stream
+           let! (partitions, stream) = upList PartitionMetadata.Unpickler stream
+           return { ErrorCode          = errorCode |> toError
+                    Topic              = name
+                    PartitionsMetadata = partitions }, stream }
+  type MetadataResponse =
+    { Brokers        : Broker list
+      TopicsMetadata : TopicMetadata list }
+    with static member Unpickler(stream) = unpickle {
+           let! (brokers,        stream) = upList Broker.Unpickler        stream
+           let! (topicsMetadata, stream) = upList TopicMetadata.Unpickler stream
+           return { Brokers        = brokers
+                    TopicsMetadata = topicsMetadata }, stream }
+
+  (* ========= GroupCoordinator response ========= *)
+  type GroupCoordinatorResponse =
+    { ErrorCode          : Errors
+      Coordinator        : Broker }
+    with static member Unpickler(stream) = unpickle {
+           let! (errorCode, stream) = upInt16          stream
+           let! (broker,    stream) = Broker.Unpickler stream
+           return { ErrorCode   = errorCode |> toError
+                    Coordinator = broker }, stream }
+
+  (* ========= JoinGroup response ========= *)
+  type GroupMember =
+    { MemberId       : string
+      MemberMetadata : byte[] }
+    with static member Unpickler(stream) = unpickle {
+           let! (memberId, stream) = upString stream
+           let! (metadata, stream) = upBytes  stream
+           return { MemberId       = memberId
+                    MemberMetadata = metadata }, stream }
+                    
+  type JoinGroupResponse =
+    { ErrorCode     : Errors
+      GenerationId  : int32
+      GroupProtocol : string
+      LeaderId      : string
+      MemberId      : string
+      Members       : GroupMember list }
+    with static member Unpickler(stream) = unpickle {
+           let! (errorCode,     stream) = upInt16                      stream
+           let! (generationId,  stream) = upInt32                      stream
+           let! (groupProtocol, stream) = upString                     stream
+           let! (leaderId,      stream) = upString                     stream
+           let! (memberId,      stream) = upString                     stream
+           let! (members,       stream) = upList GroupMember.Unpickler stream
+           return { ErrorCode     = errorCode |> toError
+                    GenerationId  = generationId
+                    GroupProtocol = groupProtocol
+                    LeaderId      = leaderId
+                    MemberId      = memberId
+                    Members       = members }, stream }
+
+  type ResponseType =
+    | Produce            of ProduceResponse
+    //| Fetch              of FetchResponse
+    //| Offsets            of OffsetsResponse
+    | Metadata           of MetadataResponse
+    //| LeaderAndIsr       of LeaderAndIsrResponse
+    //| StopReplica        of StopReplicaResponse
+    //| UpdateMetadata     of UpdateMetadataResponse
+    //| ControlledShutdown of ControlledShutdownResponse
+    //| OffsetCommit       of OffsetCommitResponse
+    //| OffsetFetch        of OffsetFetchResponse
+    | GroupCoordinator   of GroupCoordinatorResponse
+    | JoinGroup          of JoinGroupResponse
+    //| Heartbeat          of HeartbeatResponse
+    //| LeaveGroup         of LeaveGroupResponse
+    //| SyncGroup          of SyncGroupResponse
+    //| DescribeGroups     of DescribeGroupsResponse
+    //| ListGroups         of ListGroupsResponse
+    
   type ResponseMessage =
-    { CorrelationId:      int32
-      ResponseMessage:    ResponseType }
-
-  type RequestOrResponseType =
-    | RequestMessage of RequestMessage
-    | ResponseMessage of ResponseMessage
-  type RequestOrResponse =
-    { Size:               int32
-      Message:            RequestOrResponseType }
-
-  module Request =
-
-    (* make requests:
-        + produce
-        - fetch
-        - offset
-        + metadata
-        - offset commit
-        - offset fetch
-       pickles for requests:
-        + produce
-        - fetch
-        - offset
-        + metadata
-        - offset commit
-        - offset fetch *)
-
-    let private apiVersion         = 0s
-    let private messageVersion     = int8 0
-    let private encodeTimeCreation = 0
-    
-    let requestWithCorrelator correlator (message:RequestMessage) =
-      { RequestOrResponse.Size = encodeTimeCreation
-        Message = { message with CorrelationId = correlator } |> RequestMessage }
-
-    let private toApiKey = function
-      //| LeaderAndIsr         _ -> 4s
-      //| StopReplica          _ -> 5s
-      //| ConsumerMetadataRequest _ -> 10s
-      | ProduceRequest       _ -> 0s
-      | FetchRequest         _ -> 1s
-      | OffsetRequest        _ -> 2s
-      | MetadataRequest      _ -> 3s
-      | OffsetCommitRequest  _ -> 8s
-      | OffsetFetchRequest   _ -> 9s
-
-    let private requestMessage clientId message =
-      { ApiKey         = message |> toApiKey
-        ApiVersion     = apiVersion
-        CorrelationId  = encodeTimeCreation
-        ClientId       = clientId
-        RequestMessage = message }
-
-    let metadata clientId topics =
-      { MetadataRequest.TopicName = topics }
-      |> RequestType.MetadataRequest
-      |> requestMessage clientId
-
-    // messages = (Key * Value) list
-    let mkMessageSet codec messages : MessageSet =
-      let mapMessage (key, value) =
-        { Crc         = encodeTimeCreation
-          MagicByte   = messageVersion
-          Attributes  = codec
-          Key         = key
-          Value       = value }
-      let wrap message =
-        { Offset      = 0L
-          MessageSize = encodeTimeCreation
-          Message     = message }
-      List.map (mapMessage >> wrap) messages
-
-    // payload = (topic * ( (partitionId * MessageSet) list ) ) list
-    let produce clientId acks timeout payload =
-      let mapPartitions (partitionId, messages:MessageSet) : ProduceTopicPayload =
-        { Partition                 = partitionId
-          MessageSetSize            = messages.Length
-          MessageSet                = messages }
-      let mapPayload (topic, topicPayload) : ProduceRequestPayload =
-        { TopicName                 = topic
-          TopicPayload              = topicPayload |> List.map mapPartitions }
-
-      { ProduceRequest.RequiredAcks = acks
-        Timeout                     = timeout
-        Payload                     = payload |> List.map mapPayload }
-      |> RequestType.ProduceRequest
-      |> requestMessage clientId
-      
-    open Pickle
-
-    let stub = Pickle.pUnit [||]
-
-    let private encodeMetadataRequest (r:MetadataRequest) =
-      pList pString r.TopicName
-
-    let private encodeMessage (m:Message) =
-      let messageDataPickler (m:Message) =
-        let messageValue =
-          match m.Attributes with
-          | MessageCodec.None   -> m.Value
-          | MessageCodec.GZIP   -> Compression.gzipCompress m.Value
-          | MessageCodec.Snappy -> Compression.snappyCompress m.Value
-          | c                   -> sprintf "Unsupported compression %A" c |> failwith
-        (pInt8 m.MagicByte) >> (pInt8 (m.Attributes |> int8)) >> (pBytes m.Key) >> (pBytes messageValue)
-        
-      let messageData = encode messageDataPickler m
-      let crc = Crc32.calculate messageData |> int32
-      (pInt32 crc) >> (pUnit messageData)
-
-    let private encodeMessageSetEntry (e:MessageSetEntry) =
-      (pInt64 e.Offset) >> (pInt32 e.MessageSize) >> (encodeMessage e.Message)
-
-    let private encodeMessageSet v =
-      let f v s = List.fold(fun s e -> encodeMessageSetEntry e s) s v
-      f v
-
-    let private encodeProduceTopicPayload (p:ProduceTopicPayload) =
-      (pInt32 p.Partition) >> (pInt32 p.MessageSet.Length) >> (encodeMessageSet p.MessageSet)
-
-    let private encodeProduceRequestPayload (p:ProduceRequestPayload) =
-      (pString p.TopicName) >> (pList encodeProduceTopicPayload p.TopicPayload)
-
-    let private encodeProduceRequest (r:ProduceRequest) =
-      (pInt16 r.RequiredAcks) >> (pInt32 r.Timeout) >> (pList encodeProduceRequestPayload r.Payload)
-
-    let private encodeRequestMessage = function
-      | MetadataRequest     r -> encodeMetadataRequest r
-      | ProduceRequest      r -> encodeProduceRequest r
-      | FetchRequest        _ -> stub
-      | OffsetRequest       _ -> stub
-      | OffsetCommitRequest _ -> stub
-      | OffsetFetchRequest  _ -> stub
-
-    let private encodeRequest r =
-      (pInt16 r.ApiKey) >> (pInt16 r.ApiVersion) >> (pInt32 r.CorrelationId) >> (pString r.ClientId) >> (encodeRequestMessage r.RequestMessage)
-
-    let compress (codec:MessageCodec) (s:MessageSet) =
-      let wrap () : MessageSet =
-        let message =
-          { Crc         = encodeTimeCreation
-            MagicByte   = messageVersion
-            Attributes  = codec
-            Key         = [||]
-            Value       = s |> encode encodeMessageSet }
-        [ { Offset      = 0L
-            MessageSize = encodeTimeCreation
-            Message     = message } ]
-      match codec with
-      | MessageCodec.None   -> s
-      | MessageCodec.GZIP   -> wrap()
-      | MessageCodec.Snappy -> wrap()
-      | c                   -> sprintf "Unsupported compression %A" c |> failwith
-
-    let encode message =
-      match message.Message with
-      | RequestMessage r ->
-          let data = Pickle.encode encodeRequest r
-          let pickler = fun _ -> (pInt32 data.Length) >> (pUnit data)
-          Pickle.encode pickler message
-      | _                -> failwith "no encode for response needed"
-      
-  module Response =
-
-    (* make responses:
-        + produce
-        - fetch
-        - offset
-        + metadata
-        - offset commit
-        - offset fetch
-       unpicklers for responses:
-        + produce
-        - fetch
-        - offset
-        + metadata
-        - offset commit
-        - offset fetch *)
-
-    open Common
-    open Unpickle
-//
-//    let inline private toResult = function
-//      | Failure err       -> sprintf "%A" err |> exn |> Common.Failure
-//      | Success (data, _) -> data |> Common.Success
-//    
-    (* Metadata response *)
-    let private brokerUnpickler stream = unpickle {
-      let! (nodeId, stream) = upInt32  stream
-      let! (host,   stream) = upString stream
-      let! (port,   stream) = upInt32  stream
-      return { NodeId = nodeId
-               Host   = host
-               Port   = port }, stream }
-    let private partitionMetadataUnpickler stream = unpickle {
-      let! (errorCode,   stream) = upInt16        stream
-      let! (partitionId, stream) = upInt32        stream
-      let! (leader,      stream) = upInt32        stream
-      let! (replicas,    stream) = upList upInt32 stream
-      let! (isr,         stream) = upList upInt32 stream
-      return { PartitionErrorCode = errorCode
-               PartitionId        = partitionId
-               Leader             = leader
-               Replicas           = replicas
-               Isr                = isr }, stream }
-    let private topicMetadataUnpickler stream = unpickle {
-      let! (errorCode,  stream) = upInt16                           stream
-      let! (name,       stream) = upString                          stream
-      let! (partitions, stream) = upList partitionMetadataUnpickler stream
-      return { TopicErrorCode     = errorCode
-               TopicName          = name
-               PartitionMetadata  = partitions }, stream }
-    let private metadataUnpickler stream = unpickle {
-      let! (brokers, stream) = upList brokerUnpickler        stream
-      let! (topics,  stream) = upList topicMetadataUnpickler stream
-      return { Broker        = brokers
-               TopicMetadata = topics }, stream }
-
-    let private decodeMetadata data = decode metadataUnpickler data |> Result.map fst
-    
-    (* Produce response *)
-    let private produceTopicUnpickler stream = unpickle {
-      let! (partition, stream) = upInt32 stream
-      let! (errorCode, stream) = upInt16 stream
-      let! (offset,    stream) = upInt64 stream
-      return { TopicProducedPayload.Partition = partition
-               TopicProducedPayload.ErrorCode = errorCode
-               TopicProducedPayload.Offset    = offset }, stream }
-    let private producePayloadUnpickler stream = unpickle {
-      let! (name,     stream) = upString                     stream
-      let! (payloads, stream) = upList produceTopicUnpickler stream
-      return { ProduceResponsePayload.TopicName    = name
-               ProduceResponsePayload.TopicPayload = payloads }, stream }
-    let private produceUnpickler stream = unpickle {
-      return! upList producePayloadUnpickler stream }
-
-    let private decodeProduce data = decode produceUnpickler data |> Result.map fst
-    
-    (* Common *)
-    let private decodeResponse<'T> data =
-      match typeof<'T> with
-      | t when t = typeof<MetadataResponse>     -> decodeMetadata data     |> Result.map ResponseType.MetadataResponse
-      | t when t = typeof<ProduceResponse>      -> decodeProduce data      |> Result.map ResponseType.ProduceResponse
-//      | t when t = typeof<FetchResponse>        -> decodeFetch data        |> Result.map ResponseType.FetchResponse
-//      | t when t = typeof<OffsetResponse>       -> decodeOffset data       |> Result.map ResponseType.OffsetResponse
-//      | t when t = typeof<OffsetCommitResponse> -> decodeOffsetCommit data |> Result.map ResponseType.OffsetCommitResponse
-//      | t when t = typeof<OffsetFetchResponse>  -> decodeOffsetFetch data  |> Result.map ResponseType.OffsetFetchResponse
-      | t -> sprintf "type not supported: %A" t |> failwith
-    
-    let private response correlationId message =
-      { CorrelationId   = correlationId
-        ResponseMessage = message }
-
-    let decode<'T> correlationId data =
-      decodeResponse<'T> data |> Result.map (response correlationId)
-
-    let decodeInt data =
-      Unpickle.decode upInt32 data |> Result.map fst
-
-    let decoderFor = function
-      | MetadataRequest     _ -> decode<MetadataResponse>     |> Result.Success
-      | ProduceRequest      _ -> decode<ProduceResponse>      |> Result.Success
-      | FetchRequest        _ -> decode<FetchResponse>        |> Result.Success
-      | OffsetRequest       _ -> decode<OffsetResponse>       |> Result.Success
-      | OffsetCommitRequest _ -> decode<OffsetCommitResponse> |> Result.Success
-      | OffsetFetchRequest  _ -> decode<OffsetFetchResponse>  |> Result.Success
-      
+    { CorrelationId : int32
+      Message       : ResponseType }
+    with static member Create(correlationId, message) =
+           { CorrelationId = correlationId
+             Message       = message }

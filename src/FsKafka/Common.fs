@@ -23,6 +23,7 @@ module Common =
 
     type ResultBuilder () =
       member x.Return  v      = Success v
+      member x.ReturnFrom m   = m
       member x.Bind    (v, f) = bind f v
 
     let result = ResultBuilder()
